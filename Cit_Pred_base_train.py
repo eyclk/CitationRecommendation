@@ -12,9 +12,9 @@ custom_model_name = "cit_pred_base"
 additional_vocab_path = "./cit_data/additions_to_vocab.csv"
 cit_dataset_path = "./cit_data/context_only_dataset.csv"
 
-num_epochs = 200
+num_epochs = 250
 warmup_steps = 1000
-train_and_eval_batch_sizes = 32
+train_and_eval_batch_sizes = 16
 
 tokenizer = RobertaTokenizer.from_pretrained("roberta-base", truncation=True, padding=True,
                                              max_length=train_max_token_limit)
@@ -26,7 +26,7 @@ def add_cit_tokens_to_tokenizer():
     for _, i in tqdm(new_token_df.iterrows(), total=new_token_df.shape[0]):
         tokenizer.add_tokens(i['additions_to_vocab'])
 
-    model.resize_token_embeddings(len(tokenizer))  # , pad_to_multiple_of=8
+    model.resize_token_embeddings(len(tokenizer))
 
 
 def tokenizer_function(tknizer, inp_data, col_name):  # ************** TOKEN LIMIT CAN ALSO BE INCREASED LATER!!! 350
