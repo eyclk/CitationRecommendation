@@ -26,7 +26,7 @@ def add_cit_tokens_to_tokenizer():
     for _, i in tqdm(new_token_df.iterrows(), total=new_token_df.shape[0]):
         tokenizer.add_tokens(i['additions_to_vocab'])
 
-    model.resize_token_embeddings(len(tokenizer))
+    model.resize_token_embeddings(len(tokenizer), pad_to_multiple_of=8)
 
 
 def tokenizer_function(tknizer, inp_data, col_name):  # ************** TOKEN LIMIT CAN ALSO BE INCREASED LATER!!! 350
