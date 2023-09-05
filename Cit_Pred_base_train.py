@@ -12,6 +12,10 @@ custom_model_name = "cit_pred_base"
 additional_vocab_path = "./cit_data/additions_to_vocab.csv"
 cit_dataset_path = "./cit_data/context_only_dataset.csv"
 
+num_epochs = 200
+warmup_steps = 1000
+train_and_eval_batch_sizes = 32
+
 tokenizer = RobertaTokenizer.from_pretrained("roberta-base", truncation=True, padding=True,
                                              max_length=train_max_token_limit)
 model = RobertaForMaskedLM.from_pretrained("roberta-base")
@@ -143,13 +147,13 @@ if __name__ == '__main__':
         evaluation_strategy="epoch",
         # learning_rate=2e-5,
         weight_decay=0.01,
-        per_device_train_batch_size=16,
-        per_device_eval_batch_size=16,
+        per_device_train_batch_size=train_and_eval_batch_sizes,
+        per_device_eval_batch_size=train_and_eval_batch_sizes,
         push_to_hub=False,
         fp16=True,
         # logging_steps=logging_steps,
-        num_train_epochs=3,
-        warmup_steps=500
+        num_train_epochs=num_epochs,
+        warmup_steps=warmup_steps
     )
 
     trainer = Trainer(
