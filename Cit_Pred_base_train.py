@@ -12,7 +12,7 @@ custom_model_name = "cit_pred_base"
 additional_vocab_path = "./cit_data/additions_to_vocab.csv"
 cit_dataset_path = "./cit_data/context_only_dataset.csv"
 
-num_epochs = 250
+num_epochs = 100
 warmup_steps = 1000
 train_and_eval_batch_sizes = 16
 
@@ -137,7 +137,8 @@ if __name__ == '__main__':
     train_set, val_set = prepare_data()
     print("\n\n*** Train and Val sets are read and split into proper CustomCitDataset classes.")
 
-    test_example_input_and_find_hits_at_10_score(val_set)
+    # This line tests the default roberta-base model for my task.
+    # test_example_input_and_find_hits_at_10_score(val_set)
 
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
@@ -151,9 +152,13 @@ if __name__ == '__main__':
         per_device_eval_batch_size=train_and_eval_batch_sizes,
         push_to_hub=False,
         fp16=True,
-        # logging_steps=logging_steps,
+        # logging_steps=2000,
+        logging_strategy="epoch",
         num_train_epochs=num_epochs,
-        warmup_steps=warmup_steps
+        warmup_steps=warmup_steps,
+        load_best_model_at_end=True,
+        save_strategy="epoch",
+        save_total_limit=10
     )
 
     trainer = Trainer(
