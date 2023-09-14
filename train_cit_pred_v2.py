@@ -118,6 +118,8 @@ def test_example_input_and_find_hits_at_10_score(val_dataset):
     for _, cit in cit_df_for_test.iterrows():
         temp_masked_text = cit["masked_cit_context"]
         temp_masked_text = shorten_masked_context_for_limit_if_necessary(temp_masked_text)
+        if temp_masked_text.find("<mask>") == -1:
+            continue
         input_texts_for_test.append(temp_masked_text)
 
         masked_token_targets.append(cit['masked_token_target'])
