@@ -17,7 +17,7 @@ num_epochs = 150
 warmup_steps = 1000
 train_and_eval_batch_sizes = 8
 
-tokenizer = RobertaTokenizer.from_pretrained("roberta-base", truncation=True, padding=True,
+tokenizer = RobertaTokenizer.from_pretrained("roberta-base", truncation=True, padding='max_length',
                                              max_length=train_max_token_limit)
 model = RobertaForMaskedLM.from_pretrained("roberta-base")
 
@@ -31,7 +31,7 @@ def add_cit_tokens_to_tokenizer():
 
 
 def tokenizer_function(tknizer, inp_data, col_name):  # ************** TOKEN LIMIT CAN ALSO BE INCREASED LATER!!! 350
-    return tknizer(inp_data[col_name], truncation=True, padding=True, max_length=train_max_token_limit)
+    return tknizer(inp_data[col_name], truncation=True, padding='max_length', max_length=train_max_token_limit)
 
 
 def read_dataset_csv_files(train_or_eval="train"):
