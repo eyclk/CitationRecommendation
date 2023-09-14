@@ -85,7 +85,6 @@ def calc_hits_at_k_score(val_dataset, k=10):
         temp_masked_text = cit["masked_cit_context"]
         temp_masked_text = shorten_masked_context_for_limit_if_necessary(temp_masked_text)
         if temp_masked_text.find("<mask>") == -1:
-            print("******** found a string without mask!!!!")
             continue
         input_texts_for_test.append(temp_masked_text)
 
