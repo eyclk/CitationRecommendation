@@ -2,19 +2,18 @@ from transformers import RobertaForMaskedLM, RobertaTokenizer, pipeline
 from datasets import Dataset
 import pandas as pd
 # from transformers import DataCollatorWithPadding, Trainer, TrainingArguments
-from tqdm import tqdm
+# from tqdm import tqdm
 import numpy as np
 
 
-local_model_path = "./models/cit_pred_v2"
-eval_set_path = "./cit_data/context_dataset_eval.csv"
-additional_vocab_path = "./cit_data/additions_to_vocab.csv"
-tokenizer_max_token_limit = 400
-eval_max_token_limit = 500
+local_model_path = "./models/cit_pred_v2_peerread"
+eval_set_path = "./cit_data/peerread/context_dataset_eval.csv"
+additional_vocab_path = "./cit_data/peerread/additions_to_vocab.csv"
+max_token_limit = 400
 
 
 def tokenizer_function(tknizer, inp_data, col_name):
-    return tknizer(inp_data[col_name], truncation=True, padding='max_length', max_length=tokenizer_max_token_limit)
+    return tknizer(inp_data[col_name], truncation=True, padding='max_length', max_length=max_token_limit)
 
 
 def read_eval_dataset(tknizer):
@@ -53,23 +52,58 @@ def read_eval_dataset(tknizer):
     return raw_and_tokenized_data
 
 
-def add_cit_tokens_to_tokenizer():
+"""def add_cit_tokens_to_tokenizer():
     new_token_df = pd.read_csv(additional_vocab_path)
     for _, i in tqdm(new_token_df.iterrows(), total=new_token_df.shape[0]):
         tokenizer.add_tokens(i['additions_to_vocab'])
 
-    model.resize_token_embeddings(len(tokenizer))
+    model.resize_token_embeddings(len(tokenizer))"""
 
 
-def shorten_masked_context_for_limit_if_necessary(masked_text):
-    tokenized_text = tokenizer.tokenize(masked_text)
-    if len(tokenized_text) > eval_max_token_limit:  # Shorten texts with more than the max limit.
-        exceeding_char_count = 5  # Always start with 5 extra characters just in case.
-        for i in range(eval_max_token_limit-1, len(tokenized_text)):
-            exceeding_char_count += len(tokenized_text[i])
-        shortened_text = masked_text[:-exceeding_char_count]
-        return shortened_text
-    return masked_text
+def make_sure_mask_token_is_in_middle(temp_dataset):
+    cit_df = temp_dataset.to_pandas()
+    masked_texts = []
+    cit_contexts = []
+    for _, cit in cit_df.iterrows():
+        temp_masked_text = cit["masked_cit_context"]
+        masked_texts.append(temp_masked_text)
+        cit_contexts.append(cit["citation_context"])
+
+    token_limit = max_token_limit
+    half_of_limit = int(token_limit / 2)
+    fixed_masked_texts = []
+    fixed_cit_contexts = []
+    for m_idx in range(len(masked_texts)):
+        tokenized_id_text = tokenizer.encode(masked_texts[m_idx])[1:-1]
+        tokenized_cit_context = tokenizer.encode(cit_contexts[m_idx])[1:-1]
+
+        mask_index = tokenized_id_text.index(50264)  # 50264 is the <mask> token.
+        if len(tokenized_id_text) > token_limit+1 and mask_index > half_of_limit:
+            new_start_idx = mask_index - half_of_limit
+            new_end_idx = mask_index + (half_of_limit-1)
+            proper_tokenized_text = tokenized_id_text[new_start_idx:new_end_idx]
+            proper_cit_context = tokenized_cit_context[new_start_idx:new_end_idx]
+        elif len(tokenized_id_text) > token_limit+1 and mask_index <= half_of_limit:
+            proper_tokenized_text = tokenized_id_text[:token_limit]
+            proper_cit_context = tokenized_cit_context[:token_limit]
+        elif len(tokenized_id_text) <= token_limit+1 and mask_index > half_of_limit:
+            proper_tokenized_text = tokenized_id_text[:-1]
+            proper_cit_context = tokenized_cit_context[:-1]
+        else:
+            proper_tokenized_text = tokenized_id_text
+            proper_cit_context = tokenized_cit_context
+
+        decoded_masked_text = tokenizer.decode(proper_tokenized_text)
+        fixed_masked_texts.append(decoded_masked_text)
+
+        decoded_cit_context = tokenizer.decode(proper_cit_context)
+        fixed_cit_contexts.append(decoded_cit_context)
+
+    cit_df['masked_cit_context'] = fixed_masked_texts
+    cit_df['citation_context'] = fixed_cit_contexts
+    improved_temp_dataset = Dataset.from_pandas(cit_df)
+
+    return improved_temp_dataset
 
 
 # This is the same thing as recall@10. Recall@10 can only found values 0/1 or 1/1. So, it is either hit or miss.
@@ -83,7 +117,9 @@ def calc_hits_at_k_score(val_dataset, k=10):
     masked_token_targets = []
     for _, cit in cit_df_for_test.iterrows():
         temp_masked_text = cit["masked_cit_context"]
-        temp_masked_text = shorten_masked_context_for_limit_if_necessary(temp_masked_text)
+
+        # Ignore lines that have been shortened too much (they have no mask)
+        # --> Normally, this situation never happens thanks to the make_sure_mask_token_is_in_middle function.
         if temp_masked_text.find("<mask>") == -1:
             continue
         input_texts_for_test.append(temp_masked_text)
@@ -125,7 +161,7 @@ def calc_exact_match_acc_score(val_dataset):
     masked_token_targets = []
     for _, cit in cit_df_for_test.iterrows():
         temp_masked_text = cit["masked_cit_context"]
-        temp_masked_text = shorten_masked_context_for_limit_if_necessary(temp_masked_text)
+
         if temp_masked_text.find("<mask>") == -1:
             continue
         input_texts_for_test.append(temp_masked_text)
@@ -160,7 +196,7 @@ def calc_mrr_score(val_dataset):
     masked_token_targets = []
     for _, cit in cit_df_for_test.iterrows():
         temp_masked_text = cit["masked_cit_context"]
-        temp_masked_text = shorten_masked_context_for_limit_if_necessary(temp_masked_text)
+
         if temp_masked_text.find("<mask>") == -1:
             continue
         input_texts_for_test.append(temp_masked_text)
@@ -206,7 +242,7 @@ def calc_recall_at_k_score(val_dataset, k=10):  # Since each example has only 1 
     masked_token_targets = []
     for _, cit in cit_df_for_test.iterrows():
         temp_masked_text = cit["masked_cit_context"]
-        temp_masked_text = shorten_masked_context_for_limit_if_necessary(temp_masked_text)
+
         if temp_masked_text.find("<mask>") == -1:
             continue
         input_texts_for_test.append(temp_masked_text)
@@ -243,14 +279,19 @@ def calc_recall_at_k_score(val_dataset, k=10):  # Since each example has only 1 
 
 if __name__ == '__main__':
     tokenizer = RobertaTokenizer.from_pretrained(local_model_path, truncation=True, padding='max_length',
-                                                 max_length=tokenizer_max_token_limit)
+                                                 max_length=max_token_limit)
     model = RobertaForMaskedLM.from_pretrained(local_model_path)
 
-    # add_cit_tokens_to_tokenizer()
+    # add_cit_tokens_to_tokenizer() ---> Unnecessary for now
     print("*** Added the new citations tokens to the tokenizer. Example:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Nenkova and Passonneau, 2004'), "\n\n")
+    print("*** Another example:\n",
+          tokenizer.tokenize('Our paper is referencing the paper of Gribkoff et al., 2014'), "\n\n")
 
     eval_dataset = read_eval_dataset(tokenizer)
+
+    eval_dataset = make_sure_mask_token_is_in_middle(eval_dataset)
+    print("*** Eval dataset is made sure to have appropriate number of tokens and proper mask placements.\n\n")
 
     print("~" * 40)
     print("\n*** Calculating Hits@10 score")

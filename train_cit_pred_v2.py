@@ -6,14 +6,14 @@ from transformers import DataCollatorWithPadding
 from tqdm import tqdm
 
 
-eval_max_token_limit = 500
+# eval_max_token_limit = 512
 train_max_token_limit = 400
-custom_model_name = "cit_pred_v2"
-additional_vocab_path = "./cit_data/additions_to_vocab.csv"
-train_dataset_path = "./cit_data/context_dataset_train.csv"
-eval_dataset_path = "./cit_data/context_dataset_eval.csv"
+custom_model_name = "cit_pred_v2_acl_200"
+additional_vocab_path = "./cit_data/acl_200/additions_to_vocab.csv"
+train_dataset_path = "./cit_data/acl_200/context_dataset_train.csv"
+eval_dataset_path = "./cit_data/acl_200/context_dataset_eval.csv"
 
-num_epochs = 150
+num_epochs = 3
 warmup_steps = 1000
 train_and_eval_batch_sizes = 8
 
@@ -30,7 +30,7 @@ def add_cit_tokens_to_tokenizer():
     model.resize_token_embeddings(len(tokenizer))
 
 
-def tokenizer_function(tknizer, inp_data, col_name):  # ************** TOKEN LIMIT CAN ALSO BE INCREASED LATER!!! 350
+def tokenizer_function(tknizer, inp_data, col_name):
     return tknizer(inp_data[col_name], truncation=True, padding='max_length', max_length=train_max_token_limit)
 
 
@@ -53,7 +53,7 @@ def read_dataset_csv_files(train_or_eval="train"):
 
         # FOR TESTING PURPOSES ***
         """c += 1
-        if train_or_eval == "train" and c >= 5000:
+        if c >= 1000:  # train_or_eval == "train" and
             break"""
 
     df_text_list = pd.DataFrame(input_texts, columns=['input_ids'])
@@ -82,19 +82,60 @@ def prepare_data():
     return train_dataset, eval_dataset
 
 
-def shorten_masked_context_for_limit_if_necessary(masked_text):
-    tokenized_text = tokenizer.tokenize(masked_text)
-    if len(tokenized_text) > eval_max_token_limit:  # Shorten texts with more than the max limit.
-        exceeding_char_count = 5  # Always start with 5 extra characters just in case.
-        for i in range(eval_max_token_limit-1, len(tokenized_text)):
-            exceeding_char_count += len(tokenized_text[i])
-        shortened_text = masked_text[:-exceeding_char_count]
-        return shortened_text
-    return masked_text
+def make_sure_mask_token_is_in_middle(temp_dataset):
+    cit_df = temp_dataset.to_pandas()
+    masked_texts = []
+    cit_contexts = []
+    for _, cit in cit_df.iterrows():
+        temp_masked_text = cit["masked_cit_context"]
+        masked_texts.append(temp_masked_text)
+        cit_contexts.append(cit["citation_context"])
+
+    # print("\n===>>> Tokenized representation of mask: ", tokenizer.encode("<mask>"), "\n")
+    more_than_400_count = 0
+
+    token_limit = train_max_token_limit
+    half_of_limit = int(token_limit / 2)
+    fixed_masked_texts = []
+    fixed_cit_contexts = []
+    for m_idx in range(len(masked_texts)):
+        tokenized_id_text = tokenizer.encode(masked_texts[m_idx])[1:-1]
+        tokenized_cit_context = tokenizer.encode(cit_contexts[m_idx])[1:-1]
+
+        if len(tokenized_id_text) > 400:
+            more_than_400_count += 1
+        mask_index = tokenized_id_text.index(50264)  # 50264 is the <mask> token.
+        if len(tokenized_id_text) > token_limit+1 and mask_index > half_of_limit:
+            new_start_idx = mask_index - half_of_limit
+            new_end_idx = mask_index + (half_of_limit-1)
+            proper_tokenized_text = tokenized_id_text[new_start_idx:new_end_idx]
+            proper_cit_context = tokenized_cit_context[new_start_idx:new_end_idx]
+        elif len(tokenized_id_text) > token_limit+1 and mask_index <= half_of_limit:
+            proper_tokenized_text = tokenized_id_text[:token_limit]
+            proper_cit_context = tokenized_cit_context[:token_limit]
+        elif len(tokenized_id_text) <= token_limit+1 and mask_index > half_of_limit:
+            proper_tokenized_text = tokenized_id_text[:-1]
+            proper_cit_context = tokenized_cit_context[:-1]
+        else:
+            proper_tokenized_text = tokenized_id_text
+            proper_cit_context = tokenized_cit_context
+
+        decoded_masked_text = tokenizer.decode(proper_tokenized_text)
+        fixed_masked_texts.append(decoded_masked_text)
+
+        decoded_cit_context = tokenizer.decode(proper_cit_context)
+        fixed_cit_contexts.append(decoded_cit_context)
+
+    cit_df['masked_cit_context'] = fixed_masked_texts
+    cit_df['citation_context'] = fixed_cit_contexts
+    improved_temp_dataset = Dataset.from_pandas(cit_df)
+
+    print("--->> Number of contexts with more than 400 tokens =", more_than_400_count, "\n")
+    return improved_temp_dataset
 
 
 def test_example_input_and_find_hits_at_10_score(val_dataset):
-    # ************* EXAMPLE TOP10 PREDICTION TEST BEFORE FINE TUNING
+    # ************* EXAMPLE TOP10 PREDICTION TEST BEFORE FINE TUNING ----> ONLY FOR ACL-200
     example_text = "Results We evaluate output summaries using ROUGE-1, ROUGE-2, and ROUGE-SU4 (Lin, 2004), " \
                    "with no stemming and retaining all stopwords. These measures have been shown to correlate best " \
                    "with human judgments in general, but among the automatic measures, ROUGE-1 and ROUGE-2 also " \
@@ -117,7 +158,7 @@ def test_example_input_and_find_hits_at_10_score(val_dataset):
     masked_token_targets = []
     for _, cit in cit_df_for_test.iterrows():
         temp_masked_text = cit["masked_cit_context"]
-        temp_masked_text = shorten_masked_context_for_limit_if_necessary(temp_masked_text)
+
         if temp_masked_text.find("<mask>") == -1:
             continue
         input_texts_for_test.append(temp_masked_text)
@@ -155,8 +196,15 @@ if __name__ == '__main__':
     print("*** Added the new citations tokens to the tokenizer. Example:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Nenkova and Passonneau, 2004'), "\n\n")
 
+    print("*** Another example:\n",
+          tokenizer.tokenize('Our paper is referencing the paper of Gribkoff et al., 2014'), "\n\n")
+
     train_set, val_set = prepare_data()
     print("\n\n*** Train and Val sets are read and split into proper CustomCitDataset classes.")
+
+    train_set = make_sure_mask_token_is_in_middle(train_set)
+    val_set = make_sure_mask_token_is_in_middle(val_set)
+    print("\n*** Train and Val sets are made sure to have appropriate number of tokens and proper mask placements.\n\n")
 
     # This line tests the default roberta-base model for my task.
     # test_example_input_and_find_hits_at_10_score(val_set)
