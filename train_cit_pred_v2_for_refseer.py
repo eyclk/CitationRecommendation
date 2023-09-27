@@ -85,11 +85,22 @@ def prepare_data():
     return train_dataset, eval_dataset
 
 
-def check_if_masked_context_exceed_token_limit(masked_text):
+"""def check_if_masked_context_exceed_token_limit(masked_text):
     tokenized_text = tokenizer.tokenize(masked_text)
-    if len(tokenized_text) > eval_max_token_limit:  # Ignore texts with more than 500 tokens.
+    if len(tokenized_text) > max_token_limit:  # Ignore texts with more than 500 tokens.
         return True
-    return False
+    return False"""
+
+
+def shorten_masked_context_for_limit_if_necessary(masked_text):
+    tokenized_text = tokenizer.tokenize(masked_text)
+    if len(tokenized_text) > eval_max_token_limit:  # Shorten texts with more than the max limit.
+        exceeding_char_count = 5  # Always start with 5 extra characters just in case.
+        for i in range(eval_max_token_limit-1, len(tokenized_text)):
+            exceeding_char_count += len(tokenized_text[i])
+        shortened_text = masked_text[:-exceeding_char_count]
+        return shortened_text
+    return masked_text
 
 
 def test_example_input_and_find_hits_at_10_score(val_dataset):
@@ -117,9 +128,8 @@ def test_example_input_and_find_hits_at_10_score(val_dataset):
     for _, cit in cit_df_for_test.iterrows():
         temp_masked_text = cit["masked_cit_context"]
 
+        temp_masked_text = shorten_masked_context_for_limit_if_necessary(temp_masked_text)
         if temp_masked_text.find("<mask>") == -1:
-            continue
-        if check_if_masked_context_exceed_token_limit(temp_masked_text):
             continue
         input_texts_for_test.append(temp_masked_text)
 
