@@ -8,13 +8,16 @@ from tqdm import tqdm
 
 # eval_max_token_limit = 512
 train_max_token_limit = 400
-custom_model_name = "cit_pred_v2_acl_200"
-additional_vocab_path = "./cit_data/acl_200/additions_to_vocab.csv"
-train_dataset_path = "./cit_data/acl_200/context_dataset_train.csv"
-eval_dataset_path = "./cit_data/acl_200/context_dataset_eval.csv"
+custom_model_name = "cit_pred_v2_refseer_3_epoch"
+checkpoints_location = f"./checkpoints/{custom_model_name}"
+model_save_location = f"./models/{custom_model_name}"
+
+additional_vocab_path = "./cit_data/refseer/additions_to_vocab.csv"
+train_dataset_path = "./cit_data/refseer/context_dataset_train.csv"
+eval_dataset_path = "./cit_data/refseer/context_dataset_eval.csv"
 
 num_epochs = 3
-warmup_steps = 1000
+warmup_steps = 500
 train_and_eval_batch_sizes = 8
 
 tokenizer = RobertaTokenizer.from_pretrained("roberta-base", truncation=True, padding='max_length',
@@ -53,7 +56,7 @@ def read_dataset_csv_files(train_or_eval="train"):
 
         # FOR TESTING PURPOSES ***
         """c += 1
-        if c >= 1000:  # train_or_eval == "train" and
+        if c >= 5000:  # train_or_eval == "train" and
             break"""
 
     df_text_list = pd.DataFrame(input_texts, columns=['input_ids'])
@@ -91,7 +94,6 @@ def make_sure_mask_token_is_in_middle(temp_dataset):
         masked_texts.append(temp_masked_text)
         cit_contexts.append(cit["citation_context"])
 
-    # print("\n===>>> Tokenized representation of mask: ", tokenizer.encode("<mask>"), "\n")
     more_than_400_count = 0
 
     token_limit = train_max_token_limit
@@ -193,11 +195,14 @@ def test_example_input_and_find_hits_at_10_score(val_dataset):
 if __name__ == '__main__':
 
     add_cit_tokens_to_tokenizer()
-    print("*** Added the new citations tokens to the tokenizer. Example:\n",
+    print("*** Added the new citations tokens to the tokenizer. Example for acl-200:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Nenkova and Passonneau, 2004'), "\n\n")
 
-    print("*** Another example:\n",
+    print("*** Another example for peerread:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Gribkoff et al., 2014'), "\n\n")
+
+    print("*** Another example for refseer:\n",
+          tokenizer.tokenize('Our paper is referencing the paper of Ubar and Kuzmicz, 2001'), "\n\n")
 
     train_set, val_set = prepare_data()
     print("\n\n*** Train and Val sets are read and split into proper CustomCitDataset classes.")
@@ -212,7 +217,7 @@ if __name__ == '__main__':
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     training_args = TrainingArguments(
-        output_dir=f"./checkpoints/{custom_model_name}",
+        output_dir=checkpoints_location,
         overwrite_output_dir=True,
         evaluation_strategy="epoch",
         # learning_rate=2e-5,
@@ -221,7 +226,6 @@ if __name__ == '__main__':
         per_device_eval_batch_size=train_and_eval_batch_sizes,
         push_to_hub=False,
         fp16=True,
-        # logging_steps=2000,
         logging_strategy="epoch",
         num_train_epochs=num_epochs,
         warmup_steps=warmup_steps,
@@ -244,7 +248,7 @@ if __name__ == '__main__':
     print(f"\n======>> Perplexity before finetuning: {math.exp(eval_results['eval_loss']):.2f}\n")
 
     trainer.train()
-    trainer.save_model(f'./models/{custom_model_name}')
+    trainer.save_model(model_save_location)
 
     eval_results = trainer.evaluate()
     print(f"\n*****************\n======>> Perplexity after finetuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")
