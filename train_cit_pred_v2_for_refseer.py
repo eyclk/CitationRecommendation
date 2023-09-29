@@ -16,7 +16,7 @@ additional_vocab_path = "./cit_data/refseer/additions_to_vocab.csv"
 train_dataset_path = "./cit_data/refseer/context_dataset_train.csv"
 eval_dataset_path = "./cit_data/refseer/context_dataset_eval.csv"
 
-num_epochs = 3
+num_epochs = 80
 warmup_steps = 500
 train_and_eval_batch_sizes = 8
 
@@ -176,7 +176,7 @@ if __name__ == '__main__':
     print("\n\n*** Train and Val sets are read and split into proper CustomCitDataset classes.")
 
     # This line tests the default roberta-base model for my task.
-    test_example_input_and_find_hits_at_10_score(val_set)
+    # test_example_input_and_find_hits_at_10_score(val_set)
 
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
@@ -208,8 +208,8 @@ if __name__ == '__main__':
     )
 
     # Evaluate and acquire perplexity score
-    eval_results = trainer.evaluate()  # eval_dataset is being used as the test_data for now.
-    print(f"\n======>> Perplexity before finetuning: {math.exp(eval_results['eval_loss']):.2f}\n")
+    # eval_results = trainer.evaluate()  # eval_dataset is being used as the test_data for now.
+    # print(f"\n======>> Perplexity before finetuning: {math.exp(eval_results['eval_loss']):.2f}\n")
 
     trainer.train()
     trainer.save_model(model_save_location)
