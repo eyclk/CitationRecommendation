@@ -10,3 +10,4 @@
 - conda create --name myenv python=3.8
 - pip3 install torch torchvision torchaudio
 - pip install transformers datasets
+- pip install transformers[torch]
