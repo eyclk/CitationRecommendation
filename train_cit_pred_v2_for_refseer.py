@@ -8,15 +8,15 @@ from tqdm import tqdm
 
 eval_max_token_limit = 400
 train_max_token_limit = 400
-custom_model_name = "cit_pred_v2_refseer"
+custom_model_name = "cit_pred_v2_refseer200k"
 checkpoints_location = f"./checkpoints/{custom_model_name}"
 model_save_location = f"./models/{custom_model_name}"
 
-additional_vocab_path = "./cit_data/refseer/additions_to_vocab.csv"
-train_dataset_path = "./cit_data/refseer/context_dataset_train.csv"
-eval_dataset_path = "./cit_data/refseer/context_dataset_eval.csv"
+additional_vocab_path = "./cit_data/refseer200k/additions_to_vocab.csv"
+train_dataset_path = "./cit_data/refseer200k/context_dataset_train.csv"
+eval_dataset_path = "./cit_data/refseer200k/context_dataset_eval.csv"
 
-num_epochs = 80
+num_epochs = 3
 warmup_steps = 500
 train_and_eval_batch_sizes = 8
 
@@ -170,7 +170,7 @@ if __name__ == '__main__':
           tokenizer.tokenize('Our paper is referencing the paper of Gribkoff et al., 2014'), "\n\n")
 
     print("*** Another example for refseer:\n",
-          tokenizer.tokenize('Our paper is referencing the paper of Ubar and Kuzmicz, 2001'), "\n\n")
+          tokenizer.tokenize('Our paper is referencing the paper of Lecoutre and Boussemart, 2003'), "\n\n")
 
     train_set, val_set = prepare_data()
     print("\n\n*** Train and Val sets are read and split into proper CustomCitDataset classes.")

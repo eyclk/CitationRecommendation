@@ -8,15 +8,15 @@ from tqdm import tqdm
 
 # eval_max_token_limit = 512
 train_max_token_limit = 400
-custom_model_name = "cit_pred_v2_refseer_3_epoch"
+custom_model_name = "cit_pred_v2_acl_200_improved"
 checkpoints_location = f"./checkpoints/{custom_model_name}"
 model_save_location = f"./models/{custom_model_name}"
 
-additional_vocab_path = "./cit_data/refseer/additions_to_vocab.csv"
-train_dataset_path = "./cit_data/refseer/context_dataset_train.csv"
-eval_dataset_path = "./cit_data/refseer/context_dataset_eval.csv"
+additional_vocab_path = "./cit_data/acl_200_improved/additions_to_vocab.csv"
+train_dataset_path = "./cit_data/acl_200_improved/context_dataset_train.csv"
+eval_dataset_path = "./cit_data/acl_200_improved/context_dataset_eval.csv"
 
-num_epochs = 3
+num_epochs = 2
 warmup_steps = 500
 train_and_eval_batch_sizes = 8
 

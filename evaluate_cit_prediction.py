@@ -6,9 +6,9 @@ import pandas as pd
 import numpy as np
 
 
-local_model_path = "./models/cit_pred_v2_peerread"
-eval_set_path = "./cit_data/peerread/context_dataset_eval.csv"
-additional_vocab_path = "./cit_data/peerread/additions_to_vocab.csv"
+local_model_path = "./models/cit_pred_v2_acl_200_improved"
+eval_set_path = "./cit_data/acl_200_improved/context_dataset_eval.csv"
+additional_vocab_path = "./cit_data/acl_200_improved/additions_to_vocab.csv"
 max_token_limit = 400
 
 
