@@ -155,16 +155,14 @@ def test_example_input_and_find_hits_at_10_score(val_dataset):
 
 if __name__ == '__main__':
 
-    #add_cit_tokens_to_tokenizer()
+    add_cit_tokens_to_tokenizer()
+
     print("*** Added the new citations tokens to the tokenizer. Example for acl-200:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Nenkova and Passonneau, 2004'), "\n\n")
-
     print("*** Another example for peerread:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Gribkoff et al., 2014'), "\n\n")
-
     print("*** Another example for refseer:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Lecoutre and Boussemart, 2003'), "\n\n")
-
     print("*** Another example for arxiv:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Fishman et al., 2009'), "\n\n")
 

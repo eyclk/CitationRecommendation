@@ -1,14 +1,12 @@
 from transformers import RobertaForMaskedLM, RobertaTokenizer, pipeline
 from datasets import Dataset
 import pandas as pd
-# from transformers import DataCollatorWithPadding, Trainer, TrainingArguments
-# from tqdm import tqdm
 import numpy as np
 
 
-local_model_path = "./models/cit_pred_v2_peerread"
-eval_set_path = "./cit_data/peerread/context_dataset_eval.csv"
-additional_vocab_path = "./cit_data/peerread/additions_to_vocab.csv"
+local_model_path = "./models/cit_pred_v2_refseer200k"
+eval_set_path = "./cit_data/refseer200k/context_dataset_eval.csv"
+additional_vocab_path = "./cit_data/refseer200k/additions_to_vocab.csv"
 max_token_limit = 400
 
 
@@ -22,16 +20,10 @@ def read_eval_dataset(tknizer):
     label_texts = []
     masked_token_targets = []
 
-    # c = 0
     for _, i in cit_df.iterrows():
         input_texts.append(i['masked_cit_context'])
         label_texts.append(i['citation_context'])
         masked_token_targets.append(i['masked_token_target'])
-
-        # FOR TESTING PURPOSES ***
-        """c += 1
-        if c >= 1000:  # 3000
-            break"""
 
     df_text_list = pd.DataFrame(input_texts, columns=['input_ids'])
     data_input_ids = Dataset.from_pandas(df_text_list)
@@ -50,14 +42,6 @@ def read_eval_dataset(tknizer):
     raw_and_tokenized_data = raw_and_tokenized_data.add_column('masked_token_target', masked_token_targets)
 
     return raw_and_tokenized_data
-
-
-"""def add_cit_tokens_to_tokenizer():
-    new_token_df = pd.read_csv(additional_vocab_path)
-    for _, i in tqdm(new_token_df.iterrows(), total=new_token_df.shape[0]):
-        tokenizer.add_tokens(i['additions_to_vocab'])
-
-    model.resize_token_embeddings(len(tokenizer))"""
 
 
 def shorten_masked_context_for_limit_if_necessary(masked_text):
@@ -251,16 +235,16 @@ if __name__ == '__main__':
                                                  max_length=max_token_limit)
     model = RobertaForMaskedLM.from_pretrained(local_model_path)
 
-    # add_cit_tokens_to_tokenizer() ---> Unnecessary for now
-    print("*** Added the new citations tokens to the tokenizer. Example:\n",
+    print("*** Added the new citations tokens to the tokenizer. Example for acl-200:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Nenkova and Passonneau, 2004'), "\n\n")
-    print("*** Another example:\n",
+    print("*** Another example for peerread:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Gribkoff et al., 2014'), "\n\n")
+    print("*** Another example for refseer:\n",
+          tokenizer.tokenize('Our paper is referencing the paper of Lecoutre and Boussemart, 2003'), "\n\n")
+    print("*** Another example for arxiv:\n",
+          tokenizer.tokenize('Our paper is referencing the paper of Fishman et al., 2009'), "\n\n")
 
     eval_dataset = read_eval_dataset(tokenizer)
-
-    """eval_dataset = make_sure_mask_token_is_in_middle(eval_dataset)
-    print("*** Eval dataset is made sure to have appropriate number of tokens and proper mask placements.\n\n")"""
 
     print("~" * 40)
     print("\n*** Calculating Hits@10 score")
