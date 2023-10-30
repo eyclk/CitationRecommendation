@@ -8,17 +8,17 @@ from tqdm import tqdm
 
 eval_max_token_limit = 400
 train_max_token_limit = 400
-custom_model_name = "cit_pred_v2_arxiv"
-checkpoints_location = f"./checkpoints/{custom_model_name}"
+custom_model_name = "cit_pred_v2_arxiv300k"
+checkpoints_location = f"../checkpoints/{custom_model_name}"
 model_save_location = f"./models/{custom_model_name}"
 
-additional_vocab_path = "./cit_data/arxiv/additions_to_vocab.csv"
-train_dataset_path = "./cit_data/arxiv/context_dataset_train.csv"
-eval_dataset_path = "./cit_data/arxiv/context_dataset_eval.csv"
+additional_vocab_path = "../cit_data/arxiv300k/additions_to_vocab.csv"
+train_dataset_path = "../cit_data/arxiv300k/context_dataset_train.csv"
+eval_dataset_path = "../cit_data/arxiv300k/context_dataset_eval.csv"
 
-num_epochs = 3
+num_epochs = 75
 warmup_steps = 500
-train_and_eval_batch_sizes = 8
+train_and_eval_batch_sizes = 16
 
 tokenizer = RobertaTokenizer.from_pretrained("roberta-base", truncation=True, padding='max_length',
                                              max_length=train_max_token_limit)
