@@ -10,7 +10,7 @@ eval_max_token_limit = 400
 train_max_token_limit = 400
 custom_model_name = "cit_pred_v2_arxiv300k"
 checkpoints_location = f"../checkpoints/{custom_model_name}"
-model_save_location = f"./models/{custom_model_name}"
+model_save_location = f"../models/{custom_model_name}"
 
 additional_vocab_path = "../cit_data/arxiv300k/additions_to_vocab.csv"
 train_dataset_path = "../cit_data/arxiv300k/context_dataset_train.csv"
