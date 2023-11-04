@@ -8,6 +8,6 @@
 ## Requirements:
 
 - conda create --name myenv python=3.8
-- pip3 install torch torchvision torchaudio
+- pip3 install torch torchvision torchaudio   # Use an appropriate version from https://pytorch.org/get-started/locally/
 - pip install transformers datasets
 - pip install transformers[torch]
