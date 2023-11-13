@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import statistics
 import json
 
-dataset_name = "acl_200_improved"
+dataset_name = "arxiv300k_select_best_300k"
 all_contexts_file = f"./{dataset_name}/context_dataset.csv"
 
 
@@ -33,16 +33,18 @@ def find_min_and_max_ref_appearances(appearance_count_dict):
     print("References with the min amount =", key_with_min_ref_count, "\n")  # An example with minimum appearance
 
 
-def draw_histogram_of_all_cit_per_context(appearance_count_dict):
+def find_all_appearance_counts(appearance_count_dict):
     all_appearance_counts_lst = []
     for i in appearance_count_dict.keys():
         all_appearance_counts_lst.append(appearance_count_dict[i])
 
+    return all_appearance_counts_lst
+
+
+def draw_histogram_of_all_cit_per_context(all_appearance_counts_lst):
     plt.hist(all_appearance_counts_lst, bins=25)
     plt.title(f"Histogram of citations per contexts - Complete version - {dataset_name}")
     plt.show()
-
-    return all_appearance_counts_lst
 
 
 def draw_histogram_of_partial_cit_per_context(appearance_count_dict):
@@ -141,14 +143,15 @@ def write_out_statistic_files(appearance_count_dict, appearance_counts_list, app
 appearance_counts = count_ref_appearances()
 # find_min_and_max_ref_appearances(appearance_counts)
 
-all_appearance_counts = draw_histogram_of_all_cit_per_context(appearance_counts)
+all_appearance_counts = find_all_appearance_counts(appearance_counts)
+# draw_histogram_of_all_cit_per_context(appearance_counts)
 # draw_histogram_of_partial_cit_per_context(appearance_counts)
 
 # find_how_many_cites_have_more_than_75_appearances_and_less_than_7(appearance_counts)
 
-# _, _ = calculate_average_and_median_of_cit_per_ref(all_appearance_counts)
+_, _ = calculate_average_and_median_of_cit_per_ref(all_appearance_counts)
 
 draw_log_log_graphs(all_appearance_counts)
 
-# appearance_count_frequencies = create_appearance_count_frequency_dict(all_appearance_counts)
-# write_out_statistic_files(appearance_counts, all_appearance_counts, appearance_count_frequencies)
+appearance_count_frequencies = create_appearance_count_frequency_dict(all_appearance_counts)
+write_out_statistic_files(appearance_counts, all_appearance_counts, appearance_count_frequencies)
