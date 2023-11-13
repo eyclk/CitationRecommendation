@@ -6,10 +6,10 @@ import re
 contexts_file = "./acl_200_original/contexts.json"
 papers_file = "./acl_200_original/papers.json"
 
-dataset_output_file = "./acl_200_improved/context_dataset.csv"
-vocab_output_file = "./acl_200_improved/additions_to_vocab.csv"
-train_set_output_file = "./acl_200_improved/context_dataset_train.csv"
-eval_set_output_file = "./acl_200_improved/context_dataset_eval.csv"
+dataset_output_file = "./acl_200/context_dataset.csv"
+vocab_output_file = "./acl_200/additions_to_vocab.csv"
+train_set_output_file = "./acl_200/context_dataset_train.csv"
+eval_set_output_file = "./acl_200/context_dataset_eval.csv"
 
 
 def check_if_string_contains_year(marker):
@@ -22,8 +22,6 @@ def check_if_string_contains_year(marker):
 
 
 def create_target_token_for_ref_paper_id(marker_from_contexts_file):
-    # temp_paper_info_row = papers_df[ref_id]
-    # authors_from_marker = temp_paper_info_row['authors']
     temp_marker = marker_from_contexts_file.replace('(', ' ').replace(')', ' ')
 
     if not check_if_string_contains_year(temp_marker):  # Skip marker without any years, e.g. "[S91]", "[Chodorov]"
@@ -46,8 +44,6 @@ def create_target_token_for_ref_paper_id(marker_from_contexts_file):
 
 def place_mask_and_target_cit_on_ground_truth_context(ground_truth_context, target_cit_token,
                                                       marker_from_contexts_file):
-    # temp_paper_info_row = papers_df[ref_id]
-    # number_of_authors = len(temp_paper_info_row['authors'])
     number_of_authors = len(marker_from_contexts_file.split(", ")[:-1])
 
     masked_context = ""
@@ -55,7 +51,7 @@ def place_mask_and_target_cit_on_ground_truth_context(ground_truth_context, targ
 
     if number_of_authors > 2:
         split_target_cit = target_cit_token.split(" et al., ")
-        regex_string = re.compile(rf"{split_target_cit[0]}(.{{0,10}}?){split_target_cit[1]}")  # {{, 10}}
+        regex_string = re.compile(rf"{split_target_cit[0]}(.{{0,10}}?){split_target_cit[1]}")
 
         masked_context = re.sub(regex_string, ' <mask> ', ground_truth_context)
         unmasked_context = re.sub(regex_string, f' {target_cit_token} ', ground_truth_context)
@@ -89,7 +85,6 @@ def place_mask_and_target_cit_on_ground_truth_context(ground_truth_context, targ
 
 def preprocess_dataset():
     contexts_df = pd.read_json(contexts_file)
-    # papers_df = pd.read_json(papers_file)
 
     cit_contexts_list = []
     masked_cit_contexts_list = []
@@ -150,19 +145,6 @@ def split_dataset():
 
 
 if __name__ == '__main__':
-    """context_json = pd.read_json("acl_200_original/contexts.json")
-    print(context_json.iloc[:, 0], "\n\n")
-    print(context_json.iloc[:, 1], "\n\n")
-
-    paper_json = pd.read_json("acl_200_original/papers.json")
-    print(paper_json.iloc[:, 0], "\n\n")
-    print(paper_json.iloc[:, 1], "\n\n\n")
-
-    print(paper_json['P15-2138'], "\n\n")
-    print(paper_json['N04-1019'], "\n\n")  # ----> refid
-    """
-    # ---------------------------
-
     preprocess_dataset()
 
     split_dataset()

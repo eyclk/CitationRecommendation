@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 import random
+from transformers import RobertaTokenizer
 
 
 contexts_file = "./refseer_original/contexts.json"
@@ -107,6 +108,8 @@ def preprocess_dataset():
         if len(cit_contexts_list) == max_dataset_size:
             break
 
+    count_masked_contexts_with_more_than_400_tokens(masked_cit_contexts_list)
+
     new_df_table = pd.DataFrame({'citation_context': cit_contexts_list, 'masked_cit_context': masked_cit_contexts_list,
                                  'masked_token_target': masked_token_target_list})
     new_df_table.to_csv(dataset_output_file)
@@ -139,23 +142,19 @@ def split_dataset():
     df_eval.to_csv(eval_set_output_file, index=False)
 
 
+tokenizer = RobertaTokenizer.from_pretrained("roberta-base", truncation=True, padding='max_length', max_length=500)
+
+
+def count_masked_contexts_with_more_than_400_tokens(masked_cit_contexts):
+    more_than_400_count = 0
+    for m in masked_cit_contexts:
+        tokenized_masked_text = tokenizer.encode(m)[1:-1]
+        if len(tokenized_masked_text) > 400:
+            more_than_400_count += 1
+    print("--->> Number of masked contexts with more than 400 tokens =", more_than_400_count, "\n")
+
+
 if __name__ == '__main__':
-    """paper_json = pd.read_json("refseer_original/papers.json")
-    print(paper_json.iloc[:, 0], "\n")
-    print(paper_json.iloc[:, 0]['authors'], "\n")
-    print(paper_json.iloc[:, 1]['authors'], "\n")
-    print(paper_json.iloc[:, 2]['authors'], "\n")
-
-    print()
-    context_json = pd.read_json("refseer_original/contexts.json")
-    print(context_json.iloc[:, 0], "\n")
-    print(context_json.iloc[:, 0]['raw'], "\n")
-    print(context_json.iloc[:, 0]['masked_text'], "\n")
-
-    print(context_json.iloc[:, 1]['masked_text'], "\n")
-    print(context_json.iloc[:, 2]['masked_text'], "\n")"""
-    # ---------------------------
-
     preprocess_dataset()
 
     split_dataset()

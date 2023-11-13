@@ -4,24 +4,27 @@ import pandas as pd
 import math
 from transformers import DataCollatorWithPadding
 from tqdm import tqdm
+import argparse
 
-
-train_max_token_limit = 400
-custom_model_name = "cit_pred_v2_acl_200_improved"
-checkpoints_location = f"./checkpoints/{custom_model_name}"
-model_save_location = f"./models/{custom_model_name}"
-
-additional_vocab_path = "./cit_data/acl_200_improved/additions_to_vocab.csv"
-train_dataset_path = "./cit_data/acl_200_improved/context_dataset_train.csv"
-eval_dataset_path = "./cit_data/acl_200_improved/context_dataset_eval.csv"
-
-num_epochs = 3
-warmup_steps = 500
-train_and_eval_batch_sizes = 8
-
-tokenizer = RobertaTokenizer.from_pretrained("roberta-base", truncation=True, padding='max_length',
-                                             max_length=train_max_token_limit)
-model = RobertaForMaskedLM.from_pretrained("roberta-base")
+parser = argparse.ArgumentParser()
+parser.add_argument("--max_token_limit", type=int, default=400, help="Max amount allowed for tokens used for training "
+                                                                     "and evaluation")
+parser.add_argument("--model_name", type=str, help="The name of the new model. This is for saved model and checkpoints")
+parser.add_argument("--checkpoints_path", type=str, default="../checkpoints", help="Path of the checkpoints folder")
+parser.add_argument("--models_path", type=str, default="../models", help="Path of the models folder")
+parser.add_argument("--vocab_additions_path", type=str, help="Path to the additional vocab file of the dataset")
+parser.add_argument("--train_path", type=str, help="Path to the training set of the dataset")
+parser.add_argument("--eval_path", type=str, help="Path to the evaluation set of the dataset")
+parser.add_argument("--num_epochs", type=int, default=100, help="Number of epochs for training")
+parser.add_argument("--warmup_steps", type=int, default=500, help="Number of warmup steps for the learning rate")
+parser.add_argument("--batch_size", type=int, default=16, help="Batch size for the training and evaluation")
+parser.add_argument("--pretrained_model_path", type=str, default="roberta-base", help="Path or name of the pretrained "
+                                                                                      "model used at the beginning")
+parser.add_argument("--skip_vocab_additions", type=bool, default=False, help="Choose whether to skip vocab additions "
+                                                                             "or not")
+parser.add_argument("--output_file", type=str, default="./outputs/train_results.txt", help="Path to file that will "
+                                                                                           "contain outputs and "
+                                                                                           "results")
 
 
 def add_cit_tokens_to_tokenizer():
@@ -47,16 +50,10 @@ def read_dataset_csv_files(train_or_eval="train"):
     label_texts = []
     masked_token_targets = []
 
-    # c = 0
     for _, i in cit_df.iterrows():
         input_texts.append(i['masked_cit_context'])
         label_texts.append(i['citation_context'])
         masked_token_targets.append(i['masked_token_target'])
-
-        # FOR TESTING PURPOSES ***
-        """c += 1
-        if c >= 5000:  # train_or_eval == "train" and
-            break"""
 
     df_text_list = pd.DataFrame(input_texts, columns=['input_ids'])
     data_input_ids = Dataset.from_pandas(df_text_list)
@@ -84,73 +81,21 @@ def prepare_data():
     return train_dataset, eval_dataset
 
 
-def make_sure_mask_token_is_in_middle(temp_dataset):
-    cit_df = temp_dataset.to_pandas()
-    masked_texts = []
-    cit_contexts = []
-    for _, cit in cit_df.iterrows():
-        temp_masked_text = cit["masked_cit_context"]
-        masked_texts.append(temp_masked_text)
-        cit_contexts.append(cit["citation_context"])
-
-    more_than_400_count = 0
-
-    token_limit = train_max_token_limit
-    half_of_limit = int(token_limit / 2)
-    fixed_masked_texts = []
-    fixed_cit_contexts = []
-    for m_idx in range(len(masked_texts)):
-        tokenized_id_text = tokenizer.encode(masked_texts[m_idx])[1:-1]
-        tokenized_cit_context = tokenizer.encode(cit_contexts[m_idx])[1:-1]
-
-        if len(tokenized_id_text) > 400:
-            more_than_400_count += 1
-        mask_index = tokenized_id_text.index(50264)  # 50264 is the <mask> token.
-        if len(tokenized_id_text) > token_limit+1 and mask_index > half_of_limit:
-            new_start_idx = mask_index - half_of_limit
-            new_end_idx = mask_index + (half_of_limit-1)
-            proper_tokenized_text = tokenized_id_text[new_start_idx:new_end_idx]
-            proper_cit_context = tokenized_cit_context[new_start_idx:new_end_idx]
-        elif len(tokenized_id_text) > token_limit+1 and mask_index <= half_of_limit:
-            proper_tokenized_text = tokenized_id_text[:token_limit]
-            proper_cit_context = tokenized_cit_context[:token_limit]
-        elif len(tokenized_id_text) <= token_limit+1 and mask_index > half_of_limit:
-            proper_tokenized_text = tokenized_id_text[:-1]
-            proper_cit_context = tokenized_cit_context[:-1]
-        else:
-            proper_tokenized_text = tokenized_id_text
-            proper_cit_context = tokenized_cit_context
-
-        decoded_masked_text = tokenizer.decode(proper_tokenized_text)
-        fixed_masked_texts.append(decoded_masked_text)
-
-        decoded_cit_context = tokenizer.decode(proper_cit_context)
-        fixed_cit_contexts.append(decoded_cit_context)
-
-    cit_df['masked_cit_context'] = fixed_masked_texts
-    cit_df['citation_context'] = fixed_cit_contexts
-    improved_temp_dataset = Dataset.from_pandas(cit_df)
-
-    print("--->> Number of contexts with more than 400 tokens =", more_than_400_count, "\n")
-    return improved_temp_dataset
+def shorten_masked_context_for_limit_if_necessary(masked_text):
+    tokenized_text = tokenizer.tokenize(masked_text)
+    if len(tokenized_text) > eval_max_token_limit:  # Shorten texts with more than the max limit.
+        exceeding_char_count = 5  # Always start with 5 extra characters just in case.
+        for i in range(eval_max_token_limit-1, len(tokenized_text)):
+            exceeding_char_count += len(tokenized_text[i])
+        shortened_text = masked_text[:-exceeding_char_count]
+        return shortened_text
+    return masked_text
 
 
 def test_example_input_and_find_hits_at_10_score(val_dataset):
-    # ************* EXAMPLE TOP10 PREDICTION TEST BEFORE FINE TUNING ----> ONLY FOR ACL-200
-    example_text = "Results We evaluate output summaries using ROUGE-1, ROUGE-2, and ROUGE-SU4 (Lin, 2004), " \
-                   "with no stemming and retaining all stopwords. These measures have been shown to correlate best " \
-                   "with human judgments in general, but among the automatic measures, ROUGE-1 and ROUGE-2 also " \
-                   "correlate best with the Pyramid (<mask>; Nenkova et al., 2007) and Responsiveness manual metrics " \
-                   "(Louis and Nenkova, 2009). Moreover, ROUGE-1 has been shown to best reflect human-automatic " \
-                   "summary comparisons (Owczarzak et al., 2012). For single concept systems, the results are shown " \
-                   "in Table 1, and concept combination system results are given in Table 2."
     mask_filler = pipeline(
         "fill-mask", model=model, tokenizer=tokenizer, top_k=10, device=0
     )
-    preds = mask_filler(example_text)
-    for pred in preds:
-        print(f">>> {pred['sequence']}")
-    print("")
 
     # ************** HITS@10 TEST ON VAL_SET ********************
     cit_df_for_test = val_dataset.to_pandas()
@@ -160,6 +105,7 @@ def test_example_input_and_find_hits_at_10_score(val_dataset):
     for _, cit in cit_df_for_test.iterrows():
         temp_masked_text = cit["masked_cit_context"]
 
+        temp_masked_text = shorten_masked_context_for_limit_if_necessary(temp_masked_text)
         if temp_masked_text.find("<mask>") == -1:
             continue
         input_texts_for_test.append(temp_masked_text)
@@ -189,11 +135,39 @@ def test_example_input_and_find_hits_at_10_score(val_dataset):
 
     hit_at_10_metric = hit_count / pred_comparison_count
     print("\n=======>>> Hits@10 measurement value (between 0 and 1) = ", hit_at_10_metric, "\n")
+    f_out.write(f"\n=======>>> Hits@10 measurement value (between 0 and 1) = {hit_at_10_metric}\n")
 
 
 if __name__ == '__main__':
+    args = parser.parse_args()
 
-    add_cit_tokens_to_tokenizer()
+    train_max_token_limit = args.max_token_limit
+    eval_max_token_limit = args.max_token_limit
+    custom_model_name = args.model_name
+    checkpoints_location = f"{args.checkpoints_path}/{custom_model_name}"
+    model_save_location = f"{args.models_path}/{custom_model_name}"
+
+    additional_vocab_path = args.vocab_additions_path
+    train_dataset_path = args.train_path
+    eval_dataset_path = args.eval_path
+
+    num_epochs = args.num_epochs
+    warmup_steps = args.warmup_steps
+    train_and_eval_batch_sizes = args.batch_size
+
+    pretrained_model_name_or_path = args.pretrained_model_path
+
+    skip_vocab_additions = args.skip_vocab_additions
+
+    tokenizer = RobertaTokenizer.from_pretrained(pretrained_model_name_or_path, truncation=True, padding='max_length',
+                                                 max_length=train_max_token_limit)
+    model = RobertaForMaskedLM.from_pretrained(pretrained_model_name_or_path)
+
+    f_out = open(args.output_file, "w")
+
+    # --------------------------------------------------------------------------------------------
+    if not skip_vocab_additions:
+        add_cit_tokens_to_tokenizer()
 
     print("*** Added the new citations tokens to the tokenizer. Example for acl-200:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Nenkova and Passonneau, 2004'), "\n\n")
@@ -207,20 +181,12 @@ if __name__ == '__main__':
     train_set, val_set = prepare_data()
     print("\n\n*** Train and Val sets are read and split into proper CustomCitDataset classes.")
 
-    train_set = make_sure_mask_token_is_in_middle(train_set)
-    val_set = make_sure_mask_token_is_in_middle(val_set)
-    print("\n*** Train and Val sets are made sure to have appropriate number of tokens and proper mask placements.\n\n")
-
-    # This line tests the default roberta-base model for my task.
-    # test_example_input_and_find_hits_at_10_score(val_set)
-
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     training_args = TrainingArguments(
         output_dir=checkpoints_location,
         overwrite_output_dir=True,
         evaluation_strategy="epoch",
-        # learning_rate=2e-5,
         weight_decay=0.01,
         per_device_train_batch_size=train_and_eval_batch_sizes,
         per_device_eval_batch_size=train_and_eval_batch_sizes,
@@ -231,7 +197,7 @@ if __name__ == '__main__':
         warmup_steps=warmup_steps,
         load_best_model_at_end=False,
         save_strategy="epoch",
-        save_total_limit=3
+        save_total_limit=5
     )
 
     trainer = Trainer(
@@ -244,13 +210,16 @@ if __name__ == '__main__':
     )
 
     # Evaluate and acquire perplexity score
-    eval_results = trainer.evaluate()  # eval_dataset is being used as the test_data for now.
-    print(f"\n======>> Perplexity before finetuning: {math.exp(eval_results['eval_loss']):.2f}\n")
+    # eval_results = trainer.evaluate()  # eval_dataset is being used as the test_data for now.
+    # print(f"\n======>> Perplexity before fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n")
 
     trainer.train()
     trainer.save_model(model_save_location)
 
     eval_results = trainer.evaluate()
-    print(f"\n*****************\n======>> Perplexity after finetuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")
+    print(f"\n*****************\n======>> Perplexity after fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")
+    f_out.write(f"======>> Perplexity after fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")
 
     test_example_input_and_find_hits_at_10_score(val_set)
+
+    f_out.close()

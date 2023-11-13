@@ -77,20 +77,6 @@ def preprocess_dataset():
 
 
 if __name__ == '__main__':
-    """context_json = pd.read_json("refseer_original/contexts.json")
-    print(context_json.iloc[0], "\n\n")"""
-
-    """contexts_json = pd.read_json("peerread_original/contexts.json")
-    print(contexts_json.iloc[:, 0], "\n\n")
-    print(contexts_json.iloc[:, 0]['masked_text'], "\n--------------\n")
-    print(contexts_json["1606.03622v1_1409.3215v1_0"], "\n\n")
-
-    papers_json = pd.read_json("peerread_original/papers.json")
-    print(papers_json["1606.03622v1"], "\n")
-    print(papers_json[contexts_json["1606.03622v1_1409.3215v1_0"]["citing_id"]], "\n")
-    print(papers_json[contexts_json["1606.03622v1_1409.3215v1_0"]["refid"]], "\n")"""
-    # ---------------------------
-
     preprocess_dataset()
 
     split_dataset()

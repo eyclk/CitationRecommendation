@@ -2,12 +2,15 @@ from transformers import RobertaForMaskedLM, RobertaTokenizer, pipeline
 from datasets import Dataset
 import pandas as pd
 import numpy as np
+import argparse
 
-
-local_model_path = "../models/cit_pred_v2_arxiv300k"
-eval_set_path = "../cit_data/arxiv300k/context_dataset_eval.csv"
-additional_vocab_path = "../cit_data/arxiv300k/additions_to_vocab.csv"
-max_token_limit = 400
+parser = argparse.ArgumentParser()
+parser.add_argument("--trained_model_path", type=str, help="Path of the local trained model")
+parser.add_argument("--eval_path", type=str, help="Path to the evaluation set of the dataset")
+parser.add_argument("--vocab_additions_path", type=str, help="Path to the additional vocab file of the dataset")
+parser.add_argument("--max_token_limit", type=int, default=400, help="Max amount allowed for tokens used evaluation")
+parser.add_argument("--output_file", type=str, default="./outputs/eval_results.txt", help="Path to file that will "
+                                                                                          "contain outputs and results")
 
 
 def tokenizer_function(tknizer, inp_data, col_name):
@@ -99,6 +102,7 @@ def calc_hits_at_k_score(val_dataset, k=10):
 
     hit_at_k_metric = hit_count / pred_comparison_count
     print(f"\n=======>>> Hits@{k} score (between 0 and 1) = ", hit_at_k_metric, "\n")
+    f_out.write(f"\n=======>>> Hits@{k} score (between 0 and 1) = {hit_at_k_metric}\n")
 
 
 def calc_exact_match_acc_score(val_dataset):
@@ -135,6 +139,7 @@ def calc_exact_match_acc_score(val_dataset):
 
     exact_match_metric = exact_match_count / pred_comparison_count
     print("\n=======>>> Exact match/accuracy score (between 0 and 1) = ", exact_match_metric, "\n")
+    f_out.write(f"\n=======>>> Exact match/accuracy score (between 0 and 1) = {exact_match_metric}\n")
 
 
 def calc_mrr_score(val_dataset):
@@ -182,6 +187,7 @@ def calc_mrr_score(val_dataset):
 
     mean_reciprocal_rank = np.mean(reciprocal_rank_list)
     print("\n=======>>> MRR score = ", mean_reciprocal_rank, "\n")
+    f_out.write(f"\n=======>>> MRR score = {mean_reciprocal_rank}\n")
 
 
 def calc_recall_at_k_score(val_dataset, k=10):  # Since each example has only 1 ground truth, this is same as hits@10.
@@ -228,9 +234,19 @@ def calc_recall_at_k_score(val_dataset, k=10):  # Since each example has only 1 
 
     recall_at_k_score = np.mean(recall_values_list)
     print(f"\n=======>>> Recall@{k} score (between 0 and 1) = ", recall_at_k_score, "\n")
+    f_out.write(f"\n=======>>> Recall@{k} score (between 0 and 1) = {recall_at_k_score}\n")
 
 
 if __name__ == '__main__':
+    args = parser.parse_args()
+
+    local_model_path = args.trained_model_path
+    eval_set_path = args.eval_path
+    additional_vocab_path = args.vocab_additions_path
+    max_token_limit = args.max_token_limit
+
+    f_out = open(args.output_file, "w")
+
     tokenizer = RobertaTokenizer.from_pretrained(local_model_path, truncation=True, padding='max_length',
                                                  max_length=max_token_limit)
     model = RobertaForMaskedLM.from_pretrained(local_model_path)
@@ -261,3 +277,5 @@ if __name__ == '__main__':
     print("~" * 40)
     print("\n*** Calculating Recall@10 score")
     calc_recall_at_k_score(eval_dataset, k=10)
+
+    f_out.close()

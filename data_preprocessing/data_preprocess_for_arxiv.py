@@ -2,15 +2,14 @@ import pandas as pd
 import random
 from transformers import RobertaTokenizer
 
+
 contexts_file = "./arxiv_original/contexts.json"
 papers_file = "./arxiv_original/papers.json"
 
-dataset_output_file = "./arxiv300k/context_dataset.csv"
-vocab_output_file = "./arxiv300k/additions_to_vocab.csv"
-train_set_output_file = "./arxiv300k/context_dataset_train.csv"
-eval_set_output_file = "./arxiv300k/context_dataset_eval.csv"
-
-max_dataset_size = 300000
+dataset_output_file = "./arxiv/context_dataset.csv"
+vocab_output_file = "./arxiv/additions_to_vocab.csv"
+train_set_output_file = "./arxiv/context_dataset_train.csv"
+eval_set_output_file = "./arxiv/context_dataset_eval.csv"
 random.seed(42)
 
 
@@ -69,13 +68,7 @@ def preprocess_dataset():
 
     skip_count = 0
     context_df_length = len(contexts_df.columns)
-
-    # loop_i = 0
     for i in range(context_df_length):
-        """loop_i += 1
-        if loop_i < 1000000 or loop_i >= 1000000 + max_dataset_size:
-            continue"""
-
         temp_context_row = contexts_df.iloc[:, i]
 
         # For arxiv; I have to use 'refid' values similar to peerread!!!
@@ -94,9 +87,6 @@ def preprocess_dataset():
         masked_cit_contexts_list.append(masked_with_mask_text)
         cit_contexts_list.append(ground_truth_text)
         masked_token_target_list.append(temp_target_token)
-
-        if len(cit_contexts_list) == max_dataset_size:
-            break
 
     count_masked_contexts_with_more_than_400_tokens(masked_cit_contexts_list)
 
@@ -145,19 +135,6 @@ def count_masked_contexts_with_more_than_400_tokens(masked_cit_contexts):
 
 
 if __name__ == '__main__':
-    """paper_json = pd.read_json("arxiv_original/papers.json")
-    print(paper_json.iloc[:, 0], "\n")
-    print(paper_json.iloc[:, 0]['authors'], "\n")
-    print(paper_json.iloc[:, 1]['authors'], "\n")
-    print(paper_json.iloc[:, 1], "\n")
-    print(paper_json[54497421], "\n")
-
-    context_json = pd.read_json("arxiv_original/contexts.json")
-    print(context_json.iloc[:, 0], "\n")
-    print(context_json.iloc[:, 0]['raw'], "\n")
-    print(context_json.iloc[:, 0]['masked_text'], "\n")"""
-    # ---------------------------
-
     preprocess_dataset()
 
     split_dataset()

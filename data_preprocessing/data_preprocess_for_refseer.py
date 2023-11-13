@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 import random
+from transformers import RobertaTokenizer
 
 
 contexts_file = "./refseer_original/contexts.json"
@@ -31,9 +32,6 @@ def assign_appropriate_year_for_null_years(ref_id, author_names):
         while repeat_flag:
             for k in dict_missing_years_for_refid:
                 if dict_missing_years_for_refid[k] == year_names_tuple:
-                    # print(f"--> {dict_missing_years_for_refid[k]} =?= {year_names_tuple}")
-                    # print(f"--> {k} =?= {ref_id}")
-
                     random_year = random.randint(1960, 2014)
                     year_names_tuple = [random_year, author_names]
                     break
@@ -59,9 +57,6 @@ def create_target_token_for_ref_paper_id(ref_id, papers_df):
         year_from_paper_info = assign_appropriate_year_for_null_years(ref_id, authors_from_paper_info)
     else:
         year_from_paper_info = str(int(float(temp_paper_info_row['year'])))
-
-    """if len(authors_from_paper_info) == 0:
-        print("!!!!!!!! No author info!!!!!!!\n")"""
 
     if len(authors_from_paper_info) == 1:
         target_cit_token = authors_from_paper_info[0].split(" ")[-1].capitalize() + ", " + year_from_paper_info
@@ -96,7 +91,6 @@ def preprocess_dataset():
         temp_raw_text = temp_context_row['raw']
         if not check_if_raw_text_has_special_tags(temp_raw_text):  # This if branch is never entered.
             skip_count += 1
-            # print("!!!!!!! Failed to find special tags like -=- \n")
             continue
 
         # Some examples in the dataset contain '\\' substrings that cause problems with re package. They get replaced.
@@ -109,6 +103,8 @@ def preprocess_dataset():
         cit_contexts_list.append(ground_truth_text)
 
         masked_token_target_list.append(temp_target_token)
+
+    count_masked_contexts_with_more_than_400_tokens(masked_cit_contexts_list)
 
     new_df_table = pd.DataFrame({'citation_context': cit_contexts_list, 'masked_cit_context': masked_cit_contexts_list,
                                  'masked_token_target': masked_token_target_list})
@@ -142,23 +138,19 @@ def split_dataset():
     df_eval.to_csv(eval_set_output_file, index=False)
 
 
+tokenizer = RobertaTokenizer.from_pretrained("roberta-base", truncation=True, padding='max_length', max_length=500)
+
+
+def count_masked_contexts_with_more_than_400_tokens(masked_cit_contexts):
+    more_than_400_count = 0
+    for m in masked_cit_contexts:
+        tokenized_masked_text = tokenizer.encode(m)[1:-1]
+        if len(tokenized_masked_text) > 400:
+            more_than_400_count += 1
+    print("--->> Number of masked contexts with more than 400 tokens =", more_than_400_count, "\n")
+
+
 if __name__ == '__main__':
-    """paper_json = pd.read_json("refseer_original/papers.json")
-    print(paper_json.iloc[:, 0], "\n")
-    print(paper_json.iloc[:, 0]['authors'], "\n")
-    print(paper_json.iloc[:, 1]['authors'], "\n")
-    print(paper_json.iloc[:, 2]['authors'], "\n")
-
-    print()
-    context_json = pd.read_json("refseer_original/contexts.json")
-    print(context_json.iloc[:, 0], "\n")
-    print(context_json.iloc[:, 0]['raw'], "\n")
-    print(context_json.iloc[:, 0]['masked_text'], "\n")
-
-    print(context_json.iloc[:, 1]['masked_text'], "\n")
-    print(context_json.iloc[:, 2]['masked_text'], "\n")"""
-    # ---------------------------
-
     preprocess_dataset()
 
     split_dataset()
