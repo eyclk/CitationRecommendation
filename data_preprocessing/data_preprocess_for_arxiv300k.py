@@ -6,10 +6,10 @@ import json
 contexts_file = "./arxiv_original/contexts.json"
 papers_file = "./arxiv_original/papers.json"
 
-dataset_output_file = "./arxiv300k_select_best_300k/context_dataset.csv"
-vocab_output_file = "./arxiv300k_select_best_300k/additions_to_vocab.csv"
-train_set_output_file = "./arxiv300k_select_best_300k/context_dataset_train.csv"
-eval_set_output_file = "./arxiv300k_select_best_300k/context_dataset_eval.csv"
+dataset_output_file = "./arxiv300k_neg_sampling/context_dataset.csv"
+vocab_output_file = "./arxiv300k_neg_sampling/additions_to_vocab.csv"
+train_set_output_file = "./arxiv300k_neg_sampling/context_dataset_train.csv"
+eval_set_output_file = "./arxiv300k_neg_sampling/context_dataset_eval.csv"
 
 max_dataset_size = 300000
 random.seed(42)
@@ -255,10 +255,87 @@ def create_300k_dataset_select_best_300k():
     print("--> Length of citations_for_vocab: ", len(citations_for_vocab), "\n")
 
 
+def create_300k_dataset_neg_sampling():
+    contexts_df = pd.read_json(contexts_file)
+    papers_df = pd.read_json(papers_file)
+
+    cit_contexts_list = []
+    masked_cit_contexts_list = []
+    masked_token_target_list = []
+
+    with open(appearance_count_per_cit_dict_file) as json_file:
+        appearance_count_per_cit_dict = json.load(json_file)
+
+    total_count = 0
+    for t in appearance_count_per_cit_dict.keys():
+        total_count += appearance_count_per_cit_dict[t]
+
+    prob_dist_for_counts = {}
+    for p in appearance_count_per_cit_dict.keys():
+        prob_dist_for_counts[p] = appearance_count_per_cit_dict[p] / total_count
+
+    alpha = 3 / 4
+    noise_dist = {key: val ** alpha for key, val in prob_dist_for_counts.items()}
+    temp_sum = sum(noise_dist.values())
+    count_prob_dist_normalized = {key: val / temp_sum for key, val in noise_dist.items()}
+
+    selected_citation_names = []
+    temp_ref_count = 0
+    loop_flag = True
+
+    if_print_limit = 20000
+    while loop_flag:
+        if temp_ref_count >= max_dataset_size:
+            loop_flag = False
+        elif temp_ref_count >= if_print_limit:
+            print("PROGRESS: Currently, temp_ref_count is ", temp_ref_count, "\n")
+            if_print_limit += 20000
+        else:
+            selected_key_using_prob = random.choices(*zip(*count_prob_dist_normalized.items()))[0]
+            selected_citation_names.append(selected_key_using_prob)
+            temp_ref_count += appearance_count_per_cit_dict[selected_key_using_prob]
+            count_prob_dist_normalized.pop(selected_key_using_prob, None)
+
+    print("PROGRESS: selected_citation_names have been filled!!!\n")
+    context_df_length = len(contexts_df.columns)
+    for i in range(context_df_length):
+        temp_context_row = contexts_df.iloc[:, i]
+
+        temp_target_token = create_target_token_for_ref_paper_id(temp_context_row['refid'], papers_df)
+
+        if temp_target_token not in selected_citation_names:
+            continue
+
+        temp_masked_text = temp_context_row['masked_text']
+        temp_masked_text = temp_masked_text.replace('OTHERCIT', '')
+
+        masked_with_mask_text = temp_masked_text.replace('TARGETCIT', '<mask>')
+        ground_truth_text = temp_masked_text.replace('TARGETCIT', temp_target_token)
+
+        masked_cit_contexts_list.append(masked_with_mask_text)
+        cit_contexts_list.append(ground_truth_text)
+        masked_token_target_list.append(temp_target_token)
+
+        if len(cit_contexts_list) == max_dataset_size:
+            break
+
+    new_df_table = pd.DataFrame({'citation_context': cit_contexts_list, 'masked_cit_context': masked_cit_contexts_list,
+                                 'masked_token_target': masked_token_target_list})
+    new_df_table.to_csv(dataset_output_file)
+
+    citations_for_vocab = list(set(masked_token_target_list))
+    vocab_additions = pd.DataFrame({'additions_to_vocab': citations_for_vocab})
+    vocab_additions.to_csv(vocab_output_file)
+
+    print("--> Length of whole set: ", len(cit_contexts_list))
+    print("--> Length of citations_for_vocab: ", len(citations_for_vocab), "\n")
+
+
 if __name__ == '__main__':
 
     # create_300k_dataset_standard()
     # create_300k_dataset_ignore_1s()
-    create_300k_dataset_select_best_300k()
+    # create_300k_dataset_select_best_300k()
+    create_300k_dataset_neg_sampling()
 
     split_dataset()

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import statistics
 import json
 
-dataset_name = "arxiv300k_select_best_300k"
+dataset_name = "arxiv300k_neg_sampling"
 all_contexts_file = f"./{dataset_name}/context_dataset.csv"
 
 
