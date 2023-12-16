@@ -6,11 +6,13 @@ from transformers import RobertaTokenizer
 contexts_file = "./arxiv_original/contexts.json"
 papers_file = "./arxiv_original/papers.json"
 
-dataset_output_file = "./arxiv/context_dataset.csv"
-vocab_output_file = "./arxiv/additions_to_vocab.csv"
-train_set_output_file = "./arxiv/context_dataset_train.csv"
-eval_set_output_file = "./arxiv/context_dataset_eval.csv"
+dataset_output_file = "./arxiv_token_300/context_dataset.csv"
+vocab_output_file = "./arxiv_token_300/additions_to_vocab.csv"
+train_set_output_file = "./arxiv_token_300/context_dataset_train.csv"
+eval_set_output_file = "./arxiv_token_300/context_dataset_eval.csv"
 random.seed(42)
+
+max_token_limit = 300
 
 
 def assign_appropriate_year_for_null_years(ref_id, author_names):
@@ -84,11 +86,18 @@ def preprocess_dataset():
         masked_with_mask_text = temp_masked_text.replace('TARGETCIT', '<mask>')
         ground_truth_text = temp_masked_text.replace('TARGETCIT', temp_target_token)
 
+        ground_truth_text, masked_with_mask_text = shorten_unmasked_context_with_more_than_k_tokens(
+            ground_truth_text, masked_with_mask_text, k=max_token_limit)
+
+        if ground_truth_text == "X" or masked_with_mask_text == "X":
+            skip_count += 1
+            continue
+
         masked_cit_contexts_list.append(masked_with_mask_text)
         cit_contexts_list.append(ground_truth_text)
         masked_token_target_list.append(temp_target_token)
 
-    count_masked_contexts_with_more_than_400_tokens(masked_cit_contexts_list)
+    count_masked_contexts_with_more_than_k_tokens(masked_cit_contexts_list, k=max_token_limit)
 
     new_df_table = pd.DataFrame({'citation_context': cit_contexts_list, 'masked_cit_context': masked_cit_contexts_list,
                                  'masked_token_target': masked_token_target_list})
@@ -125,13 +134,30 @@ def split_dataset():
 tokenizer = RobertaTokenizer.from_pretrained("roberta-base", truncation=True, padding='max_length', max_length=500)
 
 
-def count_masked_contexts_with_more_than_400_tokens(masked_cit_contexts):
-    more_than_400_count = 0
+def count_masked_contexts_with_more_than_k_tokens(masked_cit_contexts, k=400):
+    more_than_k_count = 0
     for m in masked_cit_contexts:
         tokenized_masked_text = tokenizer.encode(m)[1:-1]
-        if len(tokenized_masked_text) > 400:
-            more_than_400_count += 1
-    print("--->> Number of masked contexts with more than 400 tokens =", more_than_400_count, "\n")
+        if len(tokenized_masked_text) > k:
+            more_than_k_count += 1
+    print(f"--->> Number of masked contexts with more than {k} tokens =", more_than_k_count, "\n")
+
+
+def shorten_unmasked_context_with_more_than_k_tokens(unmasked_cit_context, masked_cit_context, k=400):
+    tokenized_unmasked_text = tokenizer.tokenize(unmasked_cit_context)
+    if len(tokenized_unmasked_text) > k:
+        diff_from_k = len(tokenized_unmasked_text) - k
+        if diff_from_k > 150:  # Eliminate examples that need to be cut too much
+            return "X", "X"
+        cut_amount = int((diff_from_k + 3) / 2)  # Make the cut amount slightly larger thanks to +3.
+        shortened_tokenized_unmasked = tokenized_unmasked_text[cut_amount:-cut_amount]
+        shortened_unmasked_str = tokenizer.convert_tokens_to_string(shortened_tokenized_unmasked)
+
+        temp_tokenized_masked = tokenizer.tokenize(masked_cit_context)
+        shortened_tokenized_masked = temp_tokenized_masked[cut_amount:-cut_amount]
+        shortened_masked_str = tokenizer.convert_tokens_to_string(shortened_tokenized_masked)
+        return shortened_unmasked_str, shortened_masked_str
+    return unmasked_cit_context, masked_cit_context
 
 
 if __name__ == '__main__':

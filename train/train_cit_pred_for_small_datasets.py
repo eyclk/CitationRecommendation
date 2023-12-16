@@ -22,6 +22,10 @@ parser.add_argument("--pretrained_model_path", type=str, default="roberta-base",
                                                                                       "model used at the beginning")
 parser.add_argument("--skip_vocab_additions", type=bool, default=False, help="Choose whether to skip vocab additions "
                                                                              "or not")
+parser.add_argument("--make_sure_mask_in_middle", type=bool, default=False, help="Run another check on the input "
+                                                                                 "contexts and make sure mask tokens "
+                                                                                 "are in the middle by cutting from "
+                                                                                 "start and end")
 parser.add_argument("--output_file", type=str, default="./outputs/train_results.txt", help="Path to file that will "
                                                                                            "contain outputs and "
                                                                                            "results")
@@ -100,7 +104,7 @@ def make_sure_mask_token_is_in_middle(temp_dataset):
         tokenized_id_text = tokenizer.encode(masked_texts[m_idx])[1:-1]
         tokenized_cit_context = tokenizer.encode(cit_contexts[m_idx])[1:-1]
 
-        if len(tokenized_id_text) > 400:
+        if len(tokenized_id_text) > train_max_token_limit:
             more_than_400_count += 1
         mask_index = tokenized_id_text.index(50264)  # 50264 is the <mask> token.
         if len(tokenized_id_text) > token_limit+1 and mask_index > half_of_limit:
@@ -208,6 +212,7 @@ if __name__ == '__main__':
     pretrained_model_name_or_path = args.pretrained_model_path
 
     skip_vocab_additions = args.skip_vocab_additions
+    make_sure_mask_in_middle_flag = args.make_sure_mask_in_middle
 
     tokenizer = RobertaTokenizer.from_pretrained(pretrained_model_name_or_path, truncation=True, padding='max_length',
                                                  max_length=train_max_token_limit)
@@ -231,9 +236,11 @@ if __name__ == '__main__':
     train_set, val_set = prepare_data()
     print("\n\n*** Train and Val sets are read and split into proper CustomCitDataset classes.")
 
-    train_set = make_sure_mask_token_is_in_middle(train_set)
-    val_set = make_sure_mask_token_is_in_middle(val_set)
-    print("\n*** Train and Val sets are made sure to have appropriate number of tokens and proper mask placements.\n\n")
+    if make_sure_mask_in_middle_flag:
+        train_set = make_sure_mask_token_is_in_middle(train_set)
+        val_set = make_sure_mask_token_is_in_middle(val_set)
+        print("\n*** Train and Val sets are made sure to have appropriate number of tokens and proper mask "
+              "placements.\n\n")
 
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 

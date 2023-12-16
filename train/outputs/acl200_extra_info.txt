@@ -1,0 +1,4 @@
+======>> Perplexity after fine-tuning: 1.07
+
+
+=======>>> Hits@10 measurement value (between 0 and 1) = 0.027453271028037383
