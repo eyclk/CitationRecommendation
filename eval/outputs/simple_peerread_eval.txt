@@ -1,8 +1,0 @@
-
-=======>>> Hits@10 score (between 0 and 1) = 0.23695260947810437
-
-=======>>> Exact match/accuracy score (between 0 and 1) = 0.11637672465506899
-
-=======>>> MRR score = 0.15170028266826477
-
-=======>>> Recall@10 score (between 0 and 1) = 0.23695260947810437
