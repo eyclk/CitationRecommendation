@@ -3,15 +3,19 @@ from dateutil.parser import parse
 import re
 from transformers import RobertaTokenizer
 
+import matplotlib.pyplot as plt
+
 # ====> Global info refers to title and abstract.
 
 contexts_file = "../data_preprocessing/acl_200_original/contexts.json"
 papers_file = "../data_preprocessing/acl_200_original/papers.json"
 
-dataset_output_file = "acl_200_global_info/context_dataset.csv"
-vocab_output_file = "acl_200_global_info/additions_to_vocab.csv"
-train_set_output_file = "acl_200_global_info/context_dataset_train.csv"
-eval_set_output_file = "acl_200_global_info/context_dataset_eval.csv"
+dataset_output_file = "acl_200_global_info_context_50/context_dataset.csv"
+vocab_output_file = "acl_200_global_info_context_50/additions_to_vocab.csv"
+train_set_output_file = "acl_200_global_info_context_50/context_dataset_train.csv"
+eval_set_output_file = "acl_200_global_info_context_50/context_dataset_eval.csv"
+
+context_len = 50  # Otherwise, 200
 
 
 def check_if_string_contains_year(marker):
@@ -82,11 +86,41 @@ def place_mask_and_target_cit_on_ground_truth_context(ground_truth_context, targ
     return masked_context, unmasked_context
 
 
-def concatenate_title_and_abstract(temp_context, ref_id, papers_df):
+# IMPORTANT: Default max_token_limit have been reduced to 500!!!
+def concatenate_title_and_abstract_while_making_context_shorter(masked_context, temp_target, ref_id,
+                                                                papers_df, context_length=50, max_token_limit=500):
     temp_title = papers_df[ref_id]["title"]
     temp_abstract = papers_df[ref_id]["abstract"]
-    temp_context_with_global_info = temp_context + " [SEP] " + temp_title + " [SEP] " + temp_abstract
-    return temp_context_with_global_info
+
+    tokenized_context = tokenizer.tokenize(masked_context)
+    mask_idx = tokenized_context.index("<mask>")
+    half_context_len = int(context_length / 2)
+    shorter_context_tokenized = tokenized_context[mask_idx-half_context_len: mask_idx+half_context_len]
+
+    shorter_context_masked = tokenizer.convert_tokens_to_string(shorter_context_tokenized)
+
+    left_context = tokenized_context[mask_idx-half_context_len: mask_idx]
+    right_context = tokenized_context[mask_idx+1: mask_idx+half_context_len]
+    target_tokenized = tokenizer.tokenize(temp_target)
+    unmasked_tokenized = left_context + target_tokenized + right_context
+
+    # print(unmasked_tokenized, "\n\n")
+    shorter_context_unmasked = tokenizer.convert_tokens_to_string(unmasked_tokenized)
+
+    masked_context_with_global_info = shorter_context_masked + " </s> " + temp_title + " </s> " + temp_abstract
+    tokenized_with_global_info_masked = tokenizer.tokenize(masked_context_with_global_info)
+    if len(tokenized_with_global_info_masked) > max_token_limit:
+        trimmed_tokenized_with_global_info_masked = tokenized_with_global_info_masked[:max_token_limit]
+        masked_context_with_global_info = tokenizer.convert_tokens_to_string(trimmed_tokenized_with_global_info_masked)
+
+    unmasked_context_with_global_info = shorter_context_unmasked + " </s> " + temp_title + " </s> " + temp_abstract
+    tokenized_with_global_info_unmasked = tokenizer.tokenize(unmasked_context_with_global_info)
+    if len(tokenized_with_global_info_unmasked) > max_token_limit:
+        trimmed_tokenized_with_global_info_unmasked = tokenized_with_global_info_unmasked[:max_token_limit]
+        unmasked_context_with_global_info = tokenizer.convert_tokens_to_string(
+            trimmed_tokenized_with_global_info_unmasked)
+
+    return masked_context_with_global_info, unmasked_context_with_global_info
 
 
 def preprocess_dataset():
@@ -115,27 +149,17 @@ def preprocess_dataset():
             skip_count += 1
             continue
 
-        masked_text_global = concatenate_title_and_abstract(temp_masked_text, temp_context_row['refid'], papers_df)
-        unmasked_text_global = concatenate_title_and_abstract(temp_unmasked_text, temp_context_row['refid'], papers_df)
-
-        shortened_temp_masked_str, shortened_temp_unmasked_str = shorten_unmasked_context_with_more_than_k_tokens(
-            unmasked_text_global, temp_masked_text, temp_unmasked_text, k=500)
-
-        if shortened_temp_masked_str == "X":  # Check if it is equal to "X" error signal
-            skip_count += 1
-            continue
-        elif shortened_temp_masked_str != "":
-            masked_text_global = concatenate_title_and_abstract(shortened_temp_masked_str, temp_context_row['refid'],
-                                                                papers_df)
-            unmasked_text_global = concatenate_title_and_abstract(shortened_temp_unmasked_str,
-                                                                  temp_context_row['refid'],
-                                                                  papers_df)
+        masked_text_global, unmasked_text_global = concatenate_title_and_abstract_while_making_context_shorter(
+            temp_masked_text, temp_target_token, temp_context_row['refid'], papers_df, context_length=context_len)
 
         masked_token_target_list.append(temp_target_token)
         masked_cit_contexts_list.append(masked_text_global)
         cit_contexts_list.append(unmasked_text_global)
 
-    count_unmasked_contexts_with_more_than_k_tokens(cit_contexts_list, k=500)
+    count_unmasked_contexts_with_more_than_k_tokens(cit_contexts_list, k=512)
+    # count_unmasked_contexts_with_more_than_k_tokens(cit_contexts_list, k=500)
+    # count_unmasked_contexts_with_more_than_k_tokens(cit_contexts_list, k=400)
+    # count_unmasked_contexts_with_more_than_k_tokens(cit_contexts_list, k=300)
 
     new_df_table = pd.DataFrame({'citation_context': cit_contexts_list, 'masked_cit_context': masked_cit_contexts_list,
                                  'masked_token_target': masked_token_target_list})
@@ -181,35 +205,84 @@ def count_unmasked_contexts_with_more_than_k_tokens(unmasked_cit_contexts, k=500
     print(f"--->> Number of unmasked contexts with more than {k} tokens =", more_than_k_count, "\n")
 
 
-def shorten_unmasked_context_with_more_than_k_tokens(unmasked_cit_context_with_global, masked_context_without_global,
-                                                     unmasked_context_without_global, k=500):
-    tokenized_unmasked_text_global = tokenizer.tokenize(unmasked_cit_context_with_global)
-    if len(tokenized_unmasked_text_global) > k:
-        # print(f"Len of tokens = {len(tokenized_unmasked_text_global)} ************ ")
-        temp_tokenized_masked = tokenizer.tokenize(masked_context_without_global)
-        diff_from_k = len(tokenized_unmasked_text_global) - k
-        cut_amount = int((diff_from_k + 3) / 2)  # Make the cut amount slightly larger thanks to +3.
+def count_abstract_tokens_acl_200():
+    contexts_df = pd.read_json(contexts_file)
+    papers_df = pd.read_json(papers_file)
 
-        shortened_tokenized_masked = temp_tokenized_masked[cut_amount:-cut_amount]
-        shortened_str = tokenizer.convert_tokens_to_string(shortened_tokenized_masked)
-        # print(f"shortened_str --> {shortened_str} *********")
+    all_abstracts = []
+    abstract_lengths = []
+    for i in contexts_df:
+        temp_context_row = contexts_df[i]
+        temp_ref_id = temp_context_row['refid']
+        temp_abstract = papers_df[temp_ref_id]["abstract"]
+        temp_authors = papers_df[temp_ref_id]["authors"]
+        temp_title = papers_df[temp_ref_id]["title"]
+        all_abstracts.append(temp_abstract)
 
-        temp_tokenized_unmasked = tokenizer.tokenize(unmasked_context_without_global)
-        shortened_tokenized_unmasked = temp_tokenized_unmasked[cut_amount:-cut_amount]
-        shortened_unmasked_str = tokenizer.convert_tokens_to_string(shortened_tokenized_unmasked)
+        temp_abstract_tokenized = tokenizer.tokenize(temp_abstract)
+        abstract_lengths.append(len(temp_abstract_tokenized))
 
-        if len(shortened_tokenized_masked) < 200 or len(shortened_tokenized_unmasked) < 200:
-            # print(f"shortened_tokenized_masked --> {shortened_tokenized_masked} *********")
-            return "X", "X"  # Send an error signal if context size has been cut too much.
-        if shortened_unmasked_str == "" or shortened_str == "":
-            return "X", "X"  # Send error signal to say that too much cutting has been done.
-        return shortened_str, shortened_unmasked_str
-        # These sometimes return empty strings because token length was too much compared to 500.
-        # So, shortened_tokenized_masked and unmasked becomes [] due to too much cutting.
-    return "", ""  # Empty strings should only happen when there is no need for shortening.
+        if len(temp_abstract_tokenized) > 7000:  # 10000  # 5000
+            print(f"***** Example abstract with too many tokens:\n---Title: {temp_title}\n---Authors: {temp_authors}\n"
+                  f"---Original: {temp_abstract}\n"
+                  f"---Tokenized: {temp_abstract_tokenized}\n")
+
+    more_than_3000 = 0
+    more_than_2000 = 0
+    more_than_1000 = 0
+    more_than_700 = 0
+    more_than_600 = 0
+    more_than_512 = 0
+    more_than_500 = 0
+    more_than_400 = 0
+    more_than_300 = 0
+    for j in abstract_lengths:
+        if j > 3000:
+            more_than_3000 += 1
+        elif j > 2000:
+            more_than_2000 += 1
+        elif j > 1000:
+            more_than_1000 += 1
+        elif j > 700:
+            more_than_700 += 1
+        elif j > 600:
+            more_than_600 += 1
+        elif j > 512:
+            more_than_512 += 1
+        elif j > 500:
+            more_than_500 += 1
+        elif j > 400:
+            more_than_400 += 1
+        elif j > 300:
+            more_than_300 += 1
+    print(f"\n\n==> more than 3000={more_than_3000}\n==> between 2000-3000={more_than_2000}\n==> "
+          f"between 1000-2000={more_than_1000}\n==> between 700-1000={more_than_700}\n==> "
+          f"between 600-700={more_than_600}\n==> between 512-600={more_than_512}"
+          f"\n==> between 500-512={more_than_500}\n==> between 400-500={more_than_400}\n"
+          f"==> between 300-400={more_than_300}")
+
+    # Draw histogram of the abstracts' token lengths
+    plt.hist(abstract_lengths, bins=10, edgecolor='black')
+    plt.xlabel('Length of abstract tokens')
+    plt.ylabel('Occurrence frequency of lengths')
+    plt.title("Abstracts token lengths occurrence frequencies")
+    plt.show()
+
+    longer_than_limit_abstract_lengths = []
+    for k in abstract_lengths:
+        if k > 2000:
+            longer_than_limit_abstract_lengths.append(k)
+    plt.hist(longer_than_limit_abstract_lengths, bins=7, edgecolor='black')
+    plt.xlabel('Length of abstract tokens')
+    plt.ylabel('Occurrence frequency of lengths')
+    plt.title("Abstracts with token count more than some limit")
+    plt.show()
 
 
 if __name__ == '__main__':
     preprocess_dataset()
 
     split_dataset()
+
+    # *** Statistics for abstracts
+    # count_abstract_tokens_acl_200()

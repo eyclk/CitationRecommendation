@@ -15,6 +15,7 @@ parser.add_argument("--models_path", type=str, default="../models", help="Path o
 parser.add_argument("--vocab_additions_path", type=str, help="Path to the additional vocab file of the dataset")
 parser.add_argument("--train_path", type=str, help="Path to the training set of the dataset")
 parser.add_argument("--eval_path", type=str, help="Path to the evaluation set of the dataset")
+parser.add_argument("--dataset_path", type=str, default="", help="Path to the folder of the dataset")
 parser.add_argument("--num_epochs", type=int, default=100, help="Number of epochs for training")
 parser.add_argument("--warmup_steps", type=int, default=500, help="Number of warmup steps for the learning rate")
 parser.add_argument("--batch_size", type=int, default=16, help="Batch size for the training and evaluation")
@@ -163,6 +164,7 @@ def test_example_input_and_find_hits_at_10_score(val_dataset):
 
         if temp_masked_text.find("<mask>") == -1:
             continue
+
         input_texts_for_test.append(temp_masked_text)
 
         masked_token_targets.append(cit['masked_token_target'])
@@ -201,9 +203,15 @@ if __name__ == '__main__':
     checkpoints_location = f"{args.checkpoints_path}/{custom_model_name}"
     model_save_location = f"{args.models_path}/{custom_model_name}"
 
-    additional_vocab_path = args.vocab_additions_path
-    train_dataset_path = args.train_path
-    eval_dataset_path = args.eval_path
+    dataset_folder = args.dataset_path
+    if dataset_folder == "":
+        additional_vocab_path = args.vocab_additions_path
+        train_dataset_path = args.train_path
+        eval_dataset_path = args.eval_path
+    else:
+        additional_vocab_path = dataset_folder + "/additions_to_vocab.csv"
+        train_dataset_path = dataset_folder + "/context_dataset_train.csv"
+        eval_dataset_path = dataset_folder + "/context_dataset_eval.csv"
 
     num_epochs = args.num_epochs
     warmup_steps = args.warmup_steps

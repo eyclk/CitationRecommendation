@@ -6,11 +6,16 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--trained_model_path", type=str, help="Path of the local trained model")
+parser.add_argument("--dataset_path", type=str, default="", help="Path to the folder of the dataset")
 parser.add_argument("--eval_path", type=str, help="Path to the evaluation set of the dataset")
 parser.add_argument("--vocab_additions_path", type=str, help="Path to the additional vocab file of the dataset")
 parser.add_argument("--max_token_limit", type=int, default=400, help="Max amount allowed for tokens used evaluation")
 parser.add_argument("--output_file", type=str, default="./outputs/eval_results.txt", help="Path to file that will "
                                                                                           "contain outputs and results")
+parser.add_argument("--make_sure_mask_in_middle", type=bool, default=False, help="Run another check on the input "
+                                                                                 "contexts and make sure mask tokens "
+                                                                                 "are in the middle by cutting from "
+                                                                                 "start and end")
 
 
 def tokenizer_function(tknizer, inp_data, col_name):
@@ -102,16 +107,22 @@ def calc_hits_at_k_score(val_dataset, k=10):
 
     input_texts_for_test = []
     masked_token_targets = []
+
+    missing_mask_count = 0
     for _, cit in cit_df_for_test.iterrows():
         temp_masked_text = cit["masked_cit_context"]
 
         # Ignore lines that have been shortened too much (they have no mask)
         # --> Normally, this situation never happens thanks to the make_sure_mask_token_is_in_middle function.
         if temp_masked_text.find("<mask>") == -1:
+            missing_mask_count += 1
             continue
+
         input_texts_for_test.append(temp_masked_text)
 
         masked_token_targets.append(cit['masked_token_target'])
+
+    # print(f"\n\n=====>>>> missing_mask_count --> {missing_mask_count}\n\n")
 
     all_preds = mask_filler(input_texts_for_test)
     hit_count = 0
@@ -272,9 +283,16 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     local_model_path = args.trained_model_path
-    eval_set_path = args.eval_path
-    additional_vocab_path = args.vocab_additions_path
     max_token_limit = args.max_token_limit
+    make_sure_mask_in_middle_flag = args.make_sure_mask_in_middle
+
+    dataset_folder = args.dataset_path
+    if dataset_folder == "":
+        # additional_vocab_path = args.vocab_additions_path
+        eval_set_path = args.eval_path
+    else:
+        # additional_vocab_path = dataset_folder + "/additions_to_vocab.csv"
+        eval_set_path = dataset_folder + "/context_dataset_eval.csv"
 
     f_out = open(args.output_file, "w")
 
@@ -293,8 +311,9 @@ if __name__ == '__main__':
 
     eval_dataset = read_eval_dataset(tokenizer)
 
-    eval_dataset = make_sure_mask_token_is_in_middle(eval_dataset)
-    print("*** Eval dataset is made sure to have appropriate number of tokens and proper mask placements.\n\n")
+    if make_sure_mask_in_middle_flag:
+        eval_dataset = make_sure_mask_token_is_in_middle(eval_dataset)
+        print("*** Eval dataset is made sure to have appropriate number of tokens and proper mask placements.\n\n")
 
     print("~" * 40)
     print("\n*** Calculating Hits@10 score")

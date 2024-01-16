@@ -6,6 +6,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--trained_model_path", type=str, help="Path of the local trained model")
+parser.add_argument("--dataset_path", type=str, default="", help="Path to the folder of the dataset")
 parser.add_argument("--eval_path", type=str, help="Path to the evaluation set of the dataset")
 parser.add_argument("--vocab_additions_path", type=str, help="Path to the additional vocab file of the dataset")
 parser.add_argument("--max_token_limit", type=int, default=400, help="Max amount allowed for tokens used evaluation")
@@ -241,9 +242,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     local_model_path = args.trained_model_path
-    eval_set_path = args.eval_path
-    additional_vocab_path = args.vocab_additions_path
     max_token_limit = args.max_token_limit
+
+    dataset_folder = args.dataset_path
+    if dataset_folder == "":
+        # additional_vocab_path = args.vocab_additions_path
+        eval_set_path = args.eval_path
+    else:
+        # additional_vocab_path = dataset_folder + "/additions_to_vocab.csv"
+        eval_set_path = dataset_folder + "/context_dataset_eval.csv"
 
     f_out = open(args.output_file, "w")
 
