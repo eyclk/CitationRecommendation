@@ -1,17 +1,17 @@
-from transformers import RobertaForMaskedLM, Trainer, TrainingArguments, RobertaTokenizer, pipeline
+from transformers import Trainer, TrainingArguments, pipeline, BartTokenizer, BartForConditionalGeneration
 from datasets import Dataset
 import pandas as pd
 import math
 from transformers import DataCollatorWithPadding
-from tqdm import tqdm
+# from tqdm import tqdm
 import argparse
 
-
 parser = argparse.ArgumentParser()
-parser.add_argument("--max_token_limit", type=int, default=400, help="Max amount allowed for tokens used for training")
+parser.add_argument("--max_token_limit", type=int, default=400, help="Max amount allowed for tokens used for training "
+                                                                     "and evaluation")
 parser.add_argument("--model_name", type=str, help="The name of the new model. This is for saved model and checkpoints")
-parser.add_argument("--checkpoints_path", type=str, default="../checkpoints", help="Path of the checkpoints folder")
-parser.add_argument("--models_path", type=str, default="../models", help="Path of the models folder")
+parser.add_argument("--checkpoints_path", type=str, default="../../checkpoints", help="Path of the checkpoints folder")
+parser.add_argument("--models_path", type=str, default="../../models", help="Path of the models folder")
 parser.add_argument("--vocab_additions_path", type=str, help="Path to the additional vocab file of the dataset")
 parser.add_argument("--train_path", type=str, help="Path to the training set of the dataset")
 parser.add_argument("--eval_path", type=str, help="Path to the evaluation set of the dataset")
@@ -19,25 +19,21 @@ parser.add_argument("--dataset_path", type=str, default="", help="Path to the fo
 parser.add_argument("--num_epochs", type=int, default=100, help="Number of epochs for training")
 parser.add_argument("--warmup_steps", type=int, default=500, help="Number of warmup steps for the learning rate")
 parser.add_argument("--batch_size", type=int, default=16, help="Batch size for the training and evaluation")
-parser.add_argument("--pretrained_model_path", type=str, default="roberta-base", help="Path or name of the pretrained "
-                                                                                      "model used at the beginning")
-parser.add_argument("--skip_vocab_additions", type=bool, default=False, help="Choose whether to skip vocab additions "
-                                                                             "or not")
-parser.add_argument("--make_sure_mask_in_middle", type=bool, default=False, help="Run another check on the input "
-                                                                                 "contexts and make sure mask tokens "
-                                                                                 "are in the middle by cutting from "
-                                                                                 "start and end")
-parser.add_argument("--output_file", type=str, default="./outputs/train_results.txt", help="Path to file that will "
-                                                                                           "contain outputs and "
-                                                                                           "results")
+parser.add_argument("--pretrained_model_path", type=str, default="facebook/bart-base", help="Path or name of the "
+                                                                                            "pretrained model used at "
+                                                                                            "the beginning")
+# parser.add_argument("--skip_vocab_additions", type=bool, default=False, help="Choose whether to skip vocab additions "
+#                                                                           "or not")
+parser.add_argument("--output_file", type=str, default="../outputs/train_results.txt", help="Path to file that will "
+                                                                                            "contain outputs and "
+                                                                                            "results")
 
-
-def add_cit_tokens_to_tokenizer():
+"""def add_cit_tokens_to_tokenizer():
     new_token_df = pd.read_csv(additional_vocab_path)
     for _, i in tqdm(new_token_df.iterrows(), total=new_token_df.shape[0]):
         tokenizer.add_tokens(i['additions_to_vocab'])
 
-    model.resize_token_embeddings(len(tokenizer))
+    model.resize_token_embeddings(len(tokenizer))"""
 
 
 def tokenizer_function(tknizer, inp_data, col_name):
@@ -86,98 +82,72 @@ def prepare_data():
     return train_dataset, eval_dataset
 
 
-def make_sure_mask_token_is_in_middle(temp_dataset):
-    cit_df = temp_dataset.to_pandas()
-    masked_texts = []
-    cit_contexts = []
-    for _, cit in cit_df.iterrows():
-        temp_masked_text = cit["masked_cit_context"]
-        masked_texts.append(temp_masked_text)
-        cit_contexts.append(cit["citation_context"])
-
-    more_than_400_count = 0
-
-    token_limit = train_max_token_limit
-    half_of_limit = int(token_limit / 2)
-    fixed_masked_texts = []
-    fixed_cit_contexts = []
-    for m_idx in range(len(masked_texts)):
-        tokenized_id_text = tokenizer.encode(masked_texts[m_idx])[1:-1]
-        tokenized_cit_context = tokenizer.encode(cit_contexts[m_idx])[1:-1]
-
-        if len(tokenized_id_text) > train_max_token_limit:
-            more_than_400_count += 1
-        mask_index = tokenized_id_text.index(50264)  # 50264 is the <mask> token.
-        if len(tokenized_id_text) > token_limit+1 and mask_index > half_of_limit:
-            new_start_idx = mask_index - half_of_limit
-            new_end_idx = mask_index + (half_of_limit-1)
-            proper_tokenized_text = tokenized_id_text[new_start_idx:new_end_idx]
-            proper_cit_context = tokenized_cit_context[new_start_idx:new_end_idx]
-        elif len(tokenized_id_text) > token_limit+1 and mask_index <= half_of_limit:
-            proper_tokenized_text = tokenized_id_text[:token_limit]
-            proper_cit_context = tokenized_cit_context[:token_limit]
-        elif len(tokenized_id_text) <= token_limit+1 and mask_index > half_of_limit:
-            proper_tokenized_text = tokenized_id_text[:-1]
-            proper_cit_context = tokenized_cit_context[:-1]
-        else:
-            proper_tokenized_text = tokenized_id_text
-            proper_cit_context = tokenized_cit_context
-
-        decoded_masked_text = tokenizer.decode(proper_tokenized_text)
-        fixed_masked_texts.append(decoded_masked_text)
-
-        decoded_cit_context = tokenizer.decode(proper_cit_context)
-        fixed_cit_contexts.append(decoded_cit_context)
-
-    cit_df['masked_cit_context'] = fixed_masked_texts
-    cit_df['citation_context'] = fixed_cit_contexts
-    improved_temp_dataset = Dataset.from_pandas(cit_df)
-
-    print("--->> Number of contexts with more than 400 tokens =", more_than_400_count, "\n")
-    return improved_temp_dataset
+def shorten_masked_context_for_limit_if_necessary(masked_text):
+    tokenized_text = tokenizer.tokenize(masked_text)
+    if len(tokenized_text) > eval_max_token_limit:  # Shorten texts with more than the max limit.
+        exceeding_char_count = 5  # Always start with 5 extra characters just in case.
+        for i in range(eval_max_token_limit - 1, len(tokenized_text)):
+            exceeding_char_count += len(tokenized_text[i])
+        shortened_text = masked_text[:-exceeding_char_count]
+        return shortened_text
+    return masked_text
 
 
-def test_example_input_and_find_hits_at_10_score(val_dataset):
-    # ************* EXAMPLE TOP10 PREDICTION TEST BEFORE FINE TUNING ----> ONLY FOR ACL-200
-    example_text = "Results We evaluate output summaries using ROUGE-1, ROUGE-2, and ROUGE-SU4 (Lin, 2004), " \
-                   "with no stemming and retaining all stopwords. These measures have been shown to correlate best " \
-                   "with human judgments in general, but among the automatic measures, ROUGE-1 and ROUGE-2 also " \
-                   "correlate best with the Pyramid (<mask>; Nenkova et al., 2007) and Responsiveness manual metrics " \
-                   "(Louis and Nenkova, 2009). Moreover, ROUGE-1 has been shown to best reflect human-automatic " \
-                   "summary comparisons (Owczarzak et al., 2012). For single concept systems, the results are shown " \
-                   "in Table 1, and concept combination system results are given in Table 2."
+def find_exact_match_score(val_dataset):
     mask_filler = pipeline(
-        "fill-mask", model=model, tokenizer=tokenizer, top_k=10, device=0
+        "fill-mask", model=model, tokenizer=tokenizer, top_k=3, device=0,
     )
+
+    example_text = "n techniques, limits, improvement schemenerally, a well-designed language model makes a critical difference in various natural language processing  tasks, like speech recognition , machine translation <mask> , semantic extraction  and etc. guage modeling , therefore, has been the research focus in NLP field all the time, and a large number of sound research results have been published in the past decades."
+    example_ground_truth = "n techniques, limits, improvement schemenerally, a well-designed language model makes a critical difference in various natural language processing  tasks, like speech recognition , machine translation Cho et al., 2014 , semantic extraction  and etc. guage modeling , therefore, has been the research focus in NLP field all the time, and a large number of sound research results have been published in the past decades."
+
     preds = mask_filler(example_text)
     for pred in preds:
-        print(f">>> {pred['sequence']}")
-    print("")
+        print(f">>> {pred['sequence']}\n")
+    print("\n")
+
+    """batch = tokenizer(example_text, return_tensors="pt", truncation=True, padding='max_length',
+                      max_length=train_max_token_limit).to("cuda")
+    generated_ids = model.generate(batch["input_ids"], max_length=eval_max_token_limit)  # , max_new_tokens=20"""
+    #  , num_beams=5, num_return_sequences=3, temperature=1.5, do_sample=True
+
+    """predicted_text = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+    if predicted_text[0] == example_ground_truth:
+        print("\n------>Examples text's mask has been filled correctly!!!\n\n")
+    else:
+        print(f"\n------>Incorrect example text prediction: '{predicted_text}' \n\n")"""
 
     # ************** HITS@10 TEST ON VAL_SET ********************
     cit_df_for_test = val_dataset.to_pandas()
 
     input_texts_for_test = []
-    masked_token_targets = []
-
-    missing_mask_count = 0
+    ground_truth_contexts = []
     for _, cit in cit_df_for_test.iterrows():
         temp_masked_text = cit["masked_cit_context"]
 
+        temp_masked_text = shorten_masked_context_for_limit_if_necessary(temp_masked_text)
         if temp_masked_text.find("<mask>") == -1:
-            missing_mask_count += 1
             continue
-
         input_texts_for_test.append(temp_masked_text)
 
-        masked_token_targets.append(cit['masked_token_target'])
+        ground_truth_contexts.append(cit['citation_context'])
 
-    # print(f"\n*************** ===> missing_mask_count = {missing_mask_count}\n\n")  # TEMP INFO PRINTOUT !!!
+    # all_preds = mask_filler(input_texts_for_test)
+    eval_batch = tokenizer(input_texts_for_test, return_tensors="pt", truncation=True, padding='max_length',
+                           max_length=train_max_token_limit).to("cuda")
+    #  , num_beams=15, num_return_sequences=10, temperature=1.5
 
-    all_preds = mask_filler(input_texts_for_test)
+    # print(f"\n********* eval_batch ---->> {eval_batch}\n")
+
+    all_preds = model(eval_batch["input_ids"])  # ["input_ids"] , max_length=eval_max_token_limit
+
+    print(f"\n********* shape of all_preds before decode ---->> {all_preds.shape}\n")
+    all_preds = tokenizer.batch_decode(all_preds, skip_special_tokens=True)
+    print(f"********* shape of all_preds after decode ---->> {all_preds.shape}\n")
+
     hit_count = 0
     pred_comparison_count = 0
-    for j in range(len(all_preds)):
+    """for j in range(len(all_preds)):
         pred_comparison_count += 1
         temp_preds = all_preds[j]
 
@@ -185,14 +155,21 @@ def test_example_input_and_find_hits_at_10_score(val_dataset):
         for p in temp_preds:
             if isinstance(p, list):
                 for p_in in p:
-                    if p_in['token_str'] == masked_token_targets[j]:
+                    if p_in['sequence'] == ground_truth_contexts[j]:
                         hit_count += 1
                         target_pred_found = True
-            elif p['token_str'] == masked_token_targets[j]:
+            elif p['sequence'] == ground_truth_contexts[j]:
                 hit_count += 1
                 target_pred_found = True
 
             if target_pred_found:
+                break"""
+    for j in range(len(all_preds)):
+        pred_comparison_count += 1
+        temp_preds = all_preds[j]
+        for p in temp_preds:
+            if p == ground_truth_contexts[j]:
+                hit_count += 1
                 break
 
     hit_at_10_metric = hit_count / pred_comparison_count
@@ -204,6 +181,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     train_max_token_limit = args.max_token_limit
+    eval_max_token_limit = args.max_token_limit
     custom_model_name = args.model_name
     checkpoints_location = f"{args.checkpoints_path}/{custom_model_name}"
     model_save_location = f"{args.models_path}/{custom_model_name}"
@@ -224,18 +202,17 @@ if __name__ == '__main__':
 
     pretrained_model_name_or_path = args.pretrained_model_path
 
-    skip_vocab_additions = args.skip_vocab_additions
-    make_sure_mask_in_middle_flag = args.make_sure_mask_in_middle
+    # skip_vocab_additions = args.skip_vocab_additions
 
-    tokenizer = RobertaTokenizer.from_pretrained(pretrained_model_name_or_path, truncation=True, padding='max_length',
-                                                 max_length=train_max_token_limit)
-    model = RobertaForMaskedLM.from_pretrained(pretrained_model_name_or_path)
+    tokenizer = BartTokenizer.from_pretrained(pretrained_model_name_or_path, truncation=True, padding='max_length',
+                                              max_length=train_max_token_limit)
+    model = BartForConditionalGeneration.from_pretrained(pretrained_model_name_or_path)
 
     f_out = open(args.output_file, "w")
 
     # --------------------------------------------------------------------------------------------
-    if not skip_vocab_additions:
-        add_cit_tokens_to_tokenizer()
+    """if not skip_vocab_additions:
+        add_cit_tokens_to_tokenizer()"""
 
     print("*** Added the new citations tokens to the tokenizer. Example for acl-200:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Nenkova and Passonneau, 2004'), "\n\n")
@@ -248,12 +225,6 @@ if __name__ == '__main__':
 
     train_set, val_set = prepare_data()
     print("\n\n*** Train and Val sets are read and split into proper CustomCitDataset classes.")
-
-    if make_sure_mask_in_middle_flag:
-        train_set = make_sure_mask_token_is_in_middle(train_set)
-        val_set = make_sure_mask_token_is_in_middle(val_set)
-        print("\n*** Train and Val sets are made sure to have appropriate number of tokens and proper mask "
-              "placements.\n\n")
 
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
@@ -287,7 +258,7 @@ if __name__ == '__main__':
     # eval_results = trainer.evaluate()  # eval_dataset is being used as the test_data for now.
     # print(f"\n======>> Perplexity before fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n")
 
-    test_example_input_and_find_hits_at_10_score(val_set)  # TEMP !!!!!
+    find_exact_match_score(val_set)  # TEMP !!!!
 
     trainer.train()
     trainer.save_model(model_save_location)
@@ -296,6 +267,6 @@ if __name__ == '__main__':
     print(f"\n*****************\n======>> Perplexity after fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")
     f_out.write(f"======>> Perplexity after fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")
 
-    test_example_input_and_find_hits_at_10_score(val_set)
+    find_exact_match_score(val_set)
 
     f_out.close()

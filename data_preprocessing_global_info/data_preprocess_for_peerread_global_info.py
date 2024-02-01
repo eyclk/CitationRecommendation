@@ -80,6 +80,7 @@ def concatenate_title_and_abstract_while_making_context_shorter(masked_context, 
     shorter_context_tokenized = tokenized_context[mask_idx - half_context_len: mask_idx + half_context_len]
 
     shorter_context_masked = tokenizer.convert_tokens_to_string(shorter_context_tokenized)
+    # shorter_context_masked = re.sub('<mask>', ' <mask>', shorter_context_masked)
 
     left_context = tokenized_context[mask_idx - half_context_len: mask_idx]
     right_context = tokenized_context[mask_idx + 1: mask_idx + half_context_len]
@@ -87,6 +88,7 @@ def concatenate_title_and_abstract_while_making_context_shorter(masked_context, 
     unmasked_tokenized = left_context + target_tokenized + right_context
 
     shorter_context_unmasked = tokenizer.convert_tokens_to_string(unmasked_tokenized)
+    # shorter_context_unmasked = re.sub('<mask>', ' <mask>', shorter_context_unmasked)
 
     masked_context_with_global_info = shorter_context_masked + " </s> " + temp_title + " </s> " + temp_abstract
     tokenized_with_global_info_masked = tokenizer.tokenize(masked_context_with_global_info)

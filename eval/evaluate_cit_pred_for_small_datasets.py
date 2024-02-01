@@ -108,21 +108,21 @@ def calc_hits_at_k_score(val_dataset, k=10):
     input_texts_for_test = []
     masked_token_targets = []
 
-    missing_mask_count = 0
+    missing_mask_count = 0  # TEMP INFO PRINTOUT !!!
     for _, cit in cit_df_for_test.iterrows():
         temp_masked_text = cit["masked_cit_context"]
 
         # Ignore lines that have been shortened too much (they have no mask)
         # --> Normally, this situation never happens thanks to the make_sure_mask_token_is_in_middle function.
         if temp_masked_text.find("<mask>") == -1:
-            missing_mask_count += 1
+            missing_mask_count += 1  # TEMP INFO PRINTOUT !!!
             continue
 
         input_texts_for_test.append(temp_masked_text)
 
         masked_token_targets.append(cit['masked_token_target'])
 
-    # print(f"\n\n=====>>>> missing_mask_count --> {missing_mask_count}\n\n")
+    # print(f"\n\n=====>>>> missing_mask_count --> {missing_mask_count}\n\n")  # TEMP INFO PRINTOUT !!!
 
     all_preds = mask_filler(input_texts_for_test)
     hit_count = 0
