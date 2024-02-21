@@ -288,10 +288,8 @@ if __name__ == '__main__':
 
     dataset_folder = args.dataset_path
     if dataset_folder == "":
-        # additional_vocab_path = args.vocab_additions_path
         eval_set_path = args.eval_path
     else:
-        # additional_vocab_path = dataset_folder + "/additions_to_vocab.csv"
         eval_set_path = dataset_folder + "/context_dataset_eval.csv"
 
     f_out = open(args.output_file, "w")

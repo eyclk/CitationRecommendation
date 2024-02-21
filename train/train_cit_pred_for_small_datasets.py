@@ -30,6 +30,8 @@ parser.add_argument("--make_sure_mask_in_middle", type=bool, default=False, help
 parser.add_argument("--output_file", type=str, default="./outputs/train_results.txt", help="Path to file that will "
                                                                                            "contain outputs and "
                                                                                            "results")
+parser.add_argument("--tpu_num", type=int, default=-1, help="If set to something other than -1, tpu_num_cores "
+                                                            "parameter will be added to TrainingArguments.")
 
 
 def add_cit_tokens_to_tokenizer():
@@ -221,6 +223,7 @@ if __name__ == '__main__':
     num_epochs = args.num_epochs
     warmup_steps = args.warmup_steps
     train_and_eval_batch_sizes = args.batch_size
+    tpu_core_num = args.tpu_num
 
     pretrained_model_name_or_path = args.pretrained_model_path
 
@@ -274,6 +277,9 @@ if __name__ == '__main__':
         save_total_limit=5
     )
 
+    if tpu_core_num > 0:
+        training_args.tpu_num_cores = tpu_core_num
+
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -287,7 +293,7 @@ if __name__ == '__main__':
     # eval_results = trainer.evaluate()  # eval_dataset is being used as the test_data for now.
     # print(f"\n======>> Perplexity before fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n")
 
-    test_example_input_and_find_hits_at_10_score(val_set)  # TEMP !!!!!
+    # test_example_input_and_find_hits_at_10_score(val_set)
 
     trainer.train()
     trainer.save_model(model_save_location)

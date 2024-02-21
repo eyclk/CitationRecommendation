@@ -262,10 +262,15 @@ if __name__ == '__main__':
           tokenizer.tokenize('Our paper is referencing the paper of Nenkova and Passonneau, 2004'), "\n\n")
     print("*** Another example for peerread:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Gribkoff et al., 2014'), "\n\n")
+
     print("*** Another example for refseer:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Lecoutre and Boussemart, 2003'), "\n\n")
+    print("*** Another example for refseer:\n",
+          tokenizer.tokenize('Our paper is referencing the paper of Dawson and Jahanian, 1995'), "\n\n")
     print("*** Another example for arxiv:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Fishman et al., 2009'), "\n\n")
+    print("*** Another example for arxiv:\n",
+          tokenizer.tokenize('Our paper is referencing the paper of Vodolazov and Peeters, 2007'), "\n\n")
 
     eval_dataset = read_eval_dataset(tokenizer)
 

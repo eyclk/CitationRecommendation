@@ -26,6 +26,8 @@ parser.add_argument("--skip_vocab_additions", type=bool, default=False, help="Ch
 parser.add_argument("--output_file", type=str, default="./outputs/train_results.txt", help="Path to file that will "
                                                                                            "contain outputs and "
                                                                                            "results")
+parser.add_argument("--tpu_num", type=int, default=-1, help="If set to something other than -1, tpu_num_cores "
+                                                            "parameter will be added to TrainingArguments.")
 
 
 def add_cit_tokens_to_tokenizer():
@@ -103,15 +105,20 @@ def test_example_input_and_find_hits_at_10_score(val_dataset):
 
     input_texts_for_test = []
     masked_token_targets = []
+
+    missing_mask_count = 0
     for _, cit in cit_df_for_test.iterrows():
         temp_masked_text = cit["masked_cit_context"]
 
         temp_masked_text = shorten_masked_context_for_limit_if_necessary(temp_masked_text)
         if temp_masked_text.find("<mask>") == -1:
+            missing_mask_count += 1
             continue
         input_texts_for_test.append(temp_masked_text)
 
         masked_token_targets.append(cit['masked_token_target'])
+
+    # print(f"\n*************** ===> missing_mask_count = {missing_mask_count}\n\n")  # TEMP INFO PRINTOUT !!!
 
     all_preds = mask_filler(input_texts_for_test)
     hit_count = 0
@@ -161,6 +168,7 @@ if __name__ == '__main__':
     num_epochs = args.num_epochs
     warmup_steps = args.warmup_steps
     train_and_eval_batch_sizes = args.batch_size
+    tpu_core_num = args.tpu_num
 
     pretrained_model_name_or_path = args.pretrained_model_path
 
@@ -180,10 +188,15 @@ if __name__ == '__main__':
           tokenizer.tokenize('Our paper is referencing the paper of Nenkova and Passonneau, 2004'), "\n\n")
     print("*** Another example for peerread:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Gribkoff et al., 2014'), "\n\n")
+    
     print("*** Another example for refseer:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Lecoutre and Boussemart, 2003'), "\n\n")
+    print("*** Another example for refseer:\n",
+          tokenizer.tokenize('Our paper is referencing the paper of Dawson and Jahanian, 1995'), "\n\n")
     print("*** Another example for arxiv:\n",
           tokenizer.tokenize('Our paper is referencing the paper of Fishman et al., 2009'), "\n\n")
+    print("*** Another example for arxiv:\n",
+          tokenizer.tokenize('Our paper is referencing the paper of Vodolazov and Peeters, 2007'), "\n\n")
 
     train_set, val_set = prepare_data()
     print("\n\n*** Train and Val sets are read and split into proper CustomCitDataset classes.")
@@ -205,7 +218,11 @@ if __name__ == '__main__':
         load_best_model_at_end=False,
         save_strategy="epoch",
         save_total_limit=5
+        # learning_rate=5e-5
     )
+
+    if tpu_core_num > 0:
+        training_args.tpu_num_cores = tpu_core_num
 
     trainer = Trainer(
         model=model,
