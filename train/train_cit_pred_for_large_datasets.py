@@ -28,6 +28,11 @@ parser.add_argument("--output_file", type=str, default="./outputs/train_results.
                                                                                            "results")
 parser.add_argument("--tpu_num", type=int, default=-1, help="If set to something other than -1, tpu_num_cores "
                                                             "parameter will be added to TrainingArguments.")
+parser.add_argument("--auto_find_batch_size", type=bool, default=False, help="Make this flag True for the Trainer to "
+                                                                             "automatically select an appropriate "
+                                                                             "batch size")
+parser.add_argument("--fp16", type=bool, default=True, help="Make this flag False, so that Trainer can be used with "
+                                                            "TPUs")
 
 
 def add_cit_tokens_to_tokenizer():
@@ -169,6 +174,10 @@ if __name__ == '__main__':
     warmup_steps = args.warmup_steps
     train_and_eval_batch_sizes = args.batch_size
     tpu_core_num = args.tpu_num
+    fp16_flag = args.fp16
+    if fp16_flag is False:
+        print("\n---> Reminder: fp16 flag for TrainingArguments has been given as False. \n\n")
+    auto_find_batch_size_flag = args.auto_find_batch_size
 
     pretrained_model_name_or_path = args.pretrained_model_path
 
@@ -208,10 +217,10 @@ if __name__ == '__main__':
         overwrite_output_dir=True,
         evaluation_strategy="epoch",
         weight_decay=0.01,
-        per_device_train_batch_size=train_and_eval_batch_sizes,
-        per_device_eval_batch_size=train_and_eval_batch_sizes,
+        # per_device_train_batch_size=train_and_eval_batch_sizes,
+        # per_device_eval_batch_size=train_and_eval_batch_sizes,
         push_to_hub=False,
-        fp16=True,
+        fp16=fp16_flag,
         logging_strategy="epoch",
         num_train_epochs=num_epochs,
         warmup_steps=warmup_steps,
@@ -220,6 +229,12 @@ if __name__ == '__main__':
         save_total_limit=5
         # learning_rate=5e-5
     )
+
+    if auto_find_batch_size_flag is True:
+        training_args.auto_find_batch_size = True
+    else:
+        training_args.per_device_train_batch_size = train_and_eval_batch_sizes
+        training_args.per_device_eval_batch_size = train_and_eval_batch_sizes
 
     if tpu_core_num > 0:
         training_args.tpu_num_cores = tpu_core_num
