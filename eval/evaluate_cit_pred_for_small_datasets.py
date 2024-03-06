@@ -100,32 +100,6 @@ def make_sure_mask_token_is_in_middle(temp_dataset):
 
 # This is the same thing as recall@10. Recall@10 can only found values 0/1 or 1/1. So, it is either hit or miss.
 def calc_hits_at_k_score(k=10):
-    """mask_filler = pipeline(
-        "fill-mask", model=model, tokenizer=tokenizer, top_k=k, device=0
-    )
-    cit_df_for_test = val_dataset.to_pandas()
-
-    input_texts_for_test = []
-    masked_token_targets = []
-
-    missing_mask_count = 0  # TEMP INFO PRINTOUT !!!
-    for _, cit in cit_df_for_test.iterrows():
-        temp_masked_text = cit["masked_cit_context"]
-
-        # Ignore lines that have been shortened too much (they have no mask)
-        # --> Normally, this situation never happens thanks to the make_sure_mask_token_is_in_middle function.
-        if temp_masked_text.find("<mask>") == -1:
-            missing_mask_count += 1  # TEMP INFO PRINTOUT !!!
-            continue
-
-        input_texts_for_test.append(temp_masked_text)
-
-        masked_token_targets.append(cit['masked_token_target'])
-
-    # print(f"\n\n=====>>>> missing_mask_count --> {missing_mask_count}\n\n")  # TEMP INFO PRINTOUT !!!
-
-    all_preds = mask_filler(input_texts_for_test)"""
-
     hit_count = 0
     pred_comparison_count = 0
     for j in range(len(all_preds)):
@@ -152,24 +126,6 @@ def calc_hits_at_k_score(k=10):
 
 
 def calc_exact_match_acc_score():
-    """mask_filler = pipeline(
-        "fill-mask", model=model, tokenizer=tokenizer, top_k=3, device=0
-    )
-    cit_df_for_test = val_dataset.to_pandas()
-
-    input_texts_for_test = []
-    masked_token_targets = []
-    for _, cit in cit_df_for_test.iterrows():
-        temp_masked_text = cit["masked_cit_context"]
-
-        if temp_masked_text.find("<mask>") == -1:
-            continue
-        input_texts_for_test.append(temp_masked_text)
-
-        masked_token_targets.append(cit['masked_token_target'])
-
-    all_preds = mask_filler(input_texts_for_test)"""
-
     exact_match_count = 0
     pred_comparison_count = 0
     for j in range(len(all_preds)):
@@ -189,24 +145,6 @@ def calc_exact_match_acc_score():
 
 
 def calc_mrr_score():
-    """mask_filler = pipeline(
-        "fill-mask", model=model, tokenizer=tokenizer, top_k=20, device=0
-    )
-    cit_df_for_test = val_dataset.to_pandas()
-
-    input_texts_for_test = []
-    masked_token_targets = []
-    for _, cit in cit_df_for_test.iterrows():
-        temp_masked_text = cit["masked_cit_context"]
-
-        if temp_masked_text.find("<mask>") == -1:
-            continue
-        input_texts_for_test.append(temp_masked_text)
-
-        masked_token_targets.append(cit['masked_token_target'])
-
-    all_preds = mask_filler(input_texts_for_test)"""
-
     temp_reciprocal_rank = 0
     reciprocal_rank_list = []
     for j in range(len(all_preds)):
@@ -236,24 +174,6 @@ def calc_mrr_score():
 
 
 def calc_recall_at_k_score(k=10):  # Since each example has only 1 ground truth, this is same as hits@10.
-    """mask_filler = pipeline(
-        "fill-mask", model=model, tokenizer=tokenizer, top_k=k, device=0
-    )
-    cit_df_for_test = val_dataset.to_pandas()
-
-    input_texts_for_test = []
-    masked_token_targets = []
-    for _, cit in cit_df_for_test.iterrows():
-        temp_masked_text = cit["masked_cit_context"]
-
-        if temp_masked_text.find("<mask>") == -1:
-            continue
-        input_texts_for_test.append(temp_masked_text)
-
-        masked_token_targets.append(cit['masked_token_target'])
-
-    all_preds = mask_filler(input_texts_for_test)"""
-
     recall_values_list = []
     total_num_of_relevant_items = 1  # Currently, there is only one relevant ground truth value per example.
     for j in range(len(all_preds)):
