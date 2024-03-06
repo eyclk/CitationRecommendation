@@ -26,12 +26,12 @@ def read_eval_dataset(tknizer):
     cit_df = pd.read_csv(eval_set_path)
     input_texts = []
     label_texts = []
-    masked_token_targets = []
+    masked_targets = []
 
     for _, i in cit_df.iterrows():
         input_texts.append(i['masked_cit_context'])
         label_texts.append(i['citation_context'])
-        masked_token_targets.append(i['masked_token_target'])
+        masked_targets.append(i['masked_token_target'])
 
     df_text_list = pd.DataFrame(input_texts, columns=['input_ids'])
     data_input_ids = Dataset.from_pandas(df_text_list)
@@ -47,7 +47,7 @@ def read_eval_dataset(tknizer):
 
     raw_and_tokenized_data = tokenized_data.add_column('masked_cit_context', input_texts)
     raw_and_tokenized_data = raw_and_tokenized_data.add_column('citation_context', label_texts)
-    raw_and_tokenized_data = raw_and_tokenized_data.add_column('masked_token_target', masked_token_targets)
+    raw_and_tokenized_data = raw_and_tokenized_data.add_column('masked_token_target', masked_targets)
 
     return raw_and_tokenized_data
 
@@ -56,10 +56,10 @@ def make_sure_mask_token_is_in_middle(temp_dataset):
     cit_df = temp_dataset.to_pandas()
     masked_texts = []
     cit_contexts = []
-    for _, cit in cit_df.iterrows():
-        temp_masked_text = cit["masked_cit_context"]
-        masked_texts.append(temp_masked_text)
-        cit_contexts.append(cit["citation_context"])
+    for _, c in cit_df.iterrows():
+        masked_text = c["masked_cit_context"]
+        masked_texts.append(masked_text)
+        cit_contexts.append(c["citation_context"])
 
     token_limit = max_token_limit
     half_of_limit = int(token_limit / 2)
@@ -99,8 +99,8 @@ def make_sure_mask_token_is_in_middle(temp_dataset):
 
 
 # This is the same thing as recall@10. Recall@10 can only found values 0/1 or 1/1. So, it is either hit or miss.
-def calc_hits_at_k_score(val_dataset, k=10):
-    mask_filler = pipeline(
+def calc_hits_at_k_score(k=10):
+    """mask_filler = pipeline(
         "fill-mask", model=model, tokenizer=tokenizer, top_k=k, device=0
     )
     cit_df_for_test = val_dataset.to_pandas()
@@ -124,7 +124,8 @@ def calc_hits_at_k_score(val_dataset, k=10):
 
     # print(f"\n\n=====>>>> missing_mask_count --> {missing_mask_count}\n\n")  # TEMP INFO PRINTOUT !!!
 
-    all_preds = mask_filler(input_texts_for_test)
+    all_preds = mask_filler(input_texts_for_test)"""
+
     hit_count = 0
     pred_comparison_count = 0
     for j in range(len(all_preds)):
@@ -150,8 +151,8 @@ def calc_hits_at_k_score(val_dataset, k=10):
     f_out.write(f"\n=======>>> Hits@{k} score (between 0 and 1) = {hit_at_k_metric}\n")
 
 
-def calc_exact_match_acc_score(val_dataset):
-    mask_filler = pipeline(
+def calc_exact_match_acc_score():
+    """mask_filler = pipeline(
         "fill-mask", model=model, tokenizer=tokenizer, top_k=3, device=0
     )
     cit_df_for_test = val_dataset.to_pandas()
@@ -167,7 +168,8 @@ def calc_exact_match_acc_score(val_dataset):
 
         masked_token_targets.append(cit['masked_token_target'])
 
-    all_preds = mask_filler(input_texts_for_test)
+    all_preds = mask_filler(input_texts_for_test)"""
+
     exact_match_count = 0
     pred_comparison_count = 0
     for j in range(len(all_preds)):
@@ -186,8 +188,8 @@ def calc_exact_match_acc_score(val_dataset):
     f_out.write(f"\n=======>>> Exact match/accuracy score (between 0 and 1) = {exact_match_metric}\n")
 
 
-def calc_mrr_score(val_dataset):
-    mask_filler = pipeline(
+def calc_mrr_score():
+    """mask_filler = pipeline(
         "fill-mask", model=model, tokenizer=tokenizer, top_k=20, device=0
     )
     cit_df_for_test = val_dataset.to_pandas()
@@ -203,10 +205,10 @@ def calc_mrr_score(val_dataset):
 
         masked_token_targets.append(cit['masked_token_target'])
 
-    all_preds = mask_filler(input_texts_for_test)
+    all_preds = mask_filler(input_texts_for_test)"""
+
     temp_reciprocal_rank = 0
     reciprocal_rank_list = []
-
     for j in range(len(all_preds)):
         temp_preds = all_preds[j]
         reciprocal_rank_list.append(0)  # Start all recip ranks as 0. If match is found, then it is replaced.
@@ -233,8 +235,8 @@ def calc_mrr_score(val_dataset):
     f_out.write(f"\n=======>>> MRR score = {mean_reciprocal_rank}\n")
 
 
-def calc_recall_at_k_score(val_dataset, k=10):  # Since each example has only 1 ground truth, this is same as hits@10.
-    mask_filler = pipeline(
+def calc_recall_at_k_score(k=10):  # Since each example has only 1 ground truth, this is same as hits@10.
+    """mask_filler = pipeline(
         "fill-mask", model=model, tokenizer=tokenizer, top_k=k, device=0
     )
     cit_df_for_test = val_dataset.to_pandas()
@@ -250,7 +252,7 @@ def calc_recall_at_k_score(val_dataset, k=10):  # Since each example has only 1 
 
         masked_token_targets.append(cit['masked_token_target'])
 
-    all_preds = mask_filler(input_texts_for_test)
+    all_preds = mask_filler(input_texts_for_test)"""
 
     recall_values_list = []
     total_num_of_relevant_items = 1  # Currently, there is only one relevant ground truth value per example.
@@ -309,24 +311,46 @@ if __name__ == '__main__':
 
     eval_dataset = read_eval_dataset(tokenizer)
 
+    mask_filler = pipeline(
+        "fill-mask", model=model, tokenizer=tokenizer, top_k=10, device=0
+    )
+    cit_df_for_test = eval_dataset.to_pandas()
+
+    input_texts_for_test = []
+    masked_token_targets = []
+    missing_mask_count = 0  # TEMP INFO PRINTOUT !!!
+    for _, cit in cit_df_for_test.iterrows():
+        temp_masked_text = cit["masked_cit_context"]
+
+        # Ignore lines that have been shortened too much (they have no mask)
+        # --> Normally, this situation never happens thanks to the make_sure_mask_token_is_in_middle function.
+        if temp_masked_text.find("<mask>") == -1:
+            missing_mask_count += 1  # TEMP INFO PRINTOUT !!!
+            continue
+        input_texts_for_test.append(temp_masked_text)
+        masked_token_targets.append(cit['masked_token_target'])
+
+    # print(f"\n\n=====>>>> missing_mask_count --> {missing_mask_count}\n\n")  # TEMP INFO PRINTOUT !!!
+    all_preds = mask_filler(input_texts_for_test)
+
     if make_sure_mask_in_middle_flag:
         eval_dataset = make_sure_mask_token_is_in_middle(eval_dataset)
         print("*** Eval dataset is made sure to have appropriate number of tokens and proper mask placements.\n\n")
 
     print("~" * 40)
     print("\n*** Calculating Hits@10 score")
-    calc_hits_at_k_score(eval_dataset, k=10)
+    calc_hits_at_k_score(k=10)
 
     print("~" * 40)
     print("\n*** Calculating Exact Match/Accuracy score")
-    calc_exact_match_acc_score(eval_dataset)
+    calc_exact_match_acc_score()
 
     print("~" * 40)
     print("\n*** Calculating MRR score")
-    calc_mrr_score(eval_dataset)
+    calc_mrr_score()
 
     print("~" * 40)
     print("\n*** Calculating Recall@10 score")
-    calc_recall_at_k_score(eval_dataset, k=10)
+    calc_recall_at_k_score(k=10)
 
     f_out.close()

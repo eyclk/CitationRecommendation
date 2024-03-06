@@ -37,6 +37,10 @@ parser.add_argument("--auto_find_batch_size", type=bool, default=False, help="Ma
                                                                              "batch size")
 parser.add_argument("--fp16", type=bool, default=True, help="Make this flag False, so that Trainer can be used with "
                                                             "TPUs")
+parser.add_argument("--set_num_workers_to_two",
+                    type=bool, default=False, help="If Trainer class and Dataloader cause problems with older "
+                                                   "versions of PyTorch, enable this option to set num_workers "
+                                                   "options to default values")
 
 
 def add_cit_tokens_to_tokenizer():
@@ -233,9 +237,9 @@ if __name__ == '__main__':
     if fp16_flag is False:
         print("\n---> Reminder: fp16 flag for TrainingArguments has been given as False. \n\n")
     auto_find_batch_size_flag = args.auto_find_batch_size
+    set_num_workers_flag = args.set_num_workers_to_two
 
     pretrained_model_name_or_path = args.pretrained_model_path
-
     skip_vocab_additions = args.skip_vocab_additions
     make_sure_mask_in_middle_flag = args.make_sure_mask_in_middle
 
@@ -283,7 +287,7 @@ if __name__ == '__main__':
         warmup_steps=warmup_steps,
         load_best_model_at_end=False,
         save_strategy="epoch",
-        save_total_limit=5
+        save_total_limit=4
     )
 
     if auto_find_batch_size_flag is True:
@@ -291,6 +295,10 @@ if __name__ == '__main__':
     else:
         training_args.per_device_train_batch_size = train_and_eval_batch_sizes
         training_args.per_device_eval_batch_size = train_and_eval_batch_sizes
+
+    if set_num_workers_flag:
+        training_args.dataloader_num_workers = 2
+        training_args.dataloader_prefetch_factor = 2
 
     if tpu_core_num > 0:
         training_args.tpu_num_cores = tpu_core_num
