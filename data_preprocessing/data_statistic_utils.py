@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import statistics
 import json
 
-dataset_name = "arxiv300k_neg_sampling"
+dataset_name = "arxiv300k_ignore_1s_token_300"
 all_contexts_file = f"./{dataset_name}/context_dataset.csv"
 
 
@@ -141,17 +141,17 @@ def write_out_statistic_files(appearance_count_dict, appearance_counts_list, app
 
 
 appearance_counts = count_ref_appearances()
-# find_min_and_max_ref_appearances(appearance_counts)
+find_min_and_max_ref_appearances(appearance_counts)
 
 all_appearance_counts = find_all_appearance_counts(appearance_counts)
 # draw_histogram_of_all_cit_per_context(appearance_counts)
 # draw_histogram_of_partial_cit_per_context(appearance_counts)
 
-# find_how_many_cites_have_more_than_75_appearances_and_less_than_7(appearance_counts)
+find_how_many_cites_have_more_than_75_appearances_and_less_than_7(appearance_counts)
 
 _, _ = calculate_average_and_median_of_cit_per_ref(all_appearance_counts)
 
-draw_log_log_graphs(all_appearance_counts)
+# draw_log_log_graphs(all_appearance_counts)
 
-appearance_count_frequencies = create_appearance_count_frequency_dict(all_appearance_counts)
-write_out_statistic_files(appearance_counts, all_appearance_counts, appearance_count_frequencies)
+# appearance_count_frequencies = create_appearance_count_frequency_dict(all_appearance_counts)
+# write_out_statistic_files(appearance_counts, all_appearance_counts, appearance_count_frequencies)

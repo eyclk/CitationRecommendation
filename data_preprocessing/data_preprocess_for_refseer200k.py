@@ -14,6 +14,7 @@ eval_set_output_file = "./refseer200k/context_dataset_eval.csv"
 
 max_dataset_size = 200000
 random.seed(42)
+max_token_limit = 200
 
 
 # This check exists to check raw data just in case. However, all raw data already contains =-=, -=-.
@@ -84,8 +85,8 @@ def preprocess_dataset():
     for i in range(context_df_length):
         temp_context_row = contexts_df.iloc[:, i]
 
-        # For refseer; I have to use 'citing_id' values instead of 'refid' values unlike peerread!!!
-        temp_target_token = create_target_token_for_ref_paper_id(temp_context_row['citing_id'], papers_df)
+        # For refseer; I have to use 'citing_id' values instead of 'refid' values unlike peerread. --> I WAS WRONG!!!
+        temp_target_token = create_target_token_for_ref_paper_id(temp_context_row['refid'], papers_df)
         if temp_target_token == "":
             skip_count += 1
             continue
@@ -101,6 +102,9 @@ def preprocess_dataset():
         masked_raw_text = re.sub(r'=-=(.*?)-=-', ' <mask> ', temp_raw_text)
         ground_truth_text = re.sub(r'=-=(.*?)-=-', f' {temp_target_token} ', temp_raw_text)
 
+        ground_truth_text, masked_raw_text = shorten_unmasked_context_with_more_than_k_tokens(
+            ground_truth_text, masked_raw_text, k=max_token_limit)
+
         masked_cit_contexts_list.append(masked_raw_text)
         cit_contexts_list.append(ground_truth_text)
         masked_token_target_list.append(temp_target_token)
@@ -108,7 +112,7 @@ def preprocess_dataset():
         if len(cit_contexts_list) == max_dataset_size:
             break
 
-    count_masked_contexts_with_more_than_400_tokens(masked_cit_contexts_list)
+    count_masked_contexts_with_more_than_k_tokens(masked_cit_contexts_list, k=max_token_limit)
 
     new_df_table = pd.DataFrame({'citation_context': cit_contexts_list, 'masked_cit_context': masked_cit_contexts_list,
                                  'masked_token_target': masked_token_target_list})
@@ -145,13 +149,28 @@ def split_dataset():
 tokenizer = RobertaTokenizer.from_pretrained("roberta-base", truncation=True, padding='max_length', max_length=500)
 
 
-def count_masked_contexts_with_more_than_400_tokens(masked_cit_contexts):
+def count_masked_contexts_with_more_than_k_tokens(masked_cit_contexts, k=300):
     more_than_400_count = 0
     for m in masked_cit_contexts:
         tokenized_masked_text = tokenizer.encode(m)[1:-1]
-        if len(tokenized_masked_text) > 400:
+        if len(tokenized_masked_text) > k:
             more_than_400_count += 1
-    print("--->> Number of masked contexts with more than 400 tokens =", more_than_400_count, "\n")
+    print(f"--->> Number of masked contexts with more than {k} tokens = {more_than_400_count}\n")
+
+
+def shorten_unmasked_context_with_more_than_k_tokens(unmasked_cit_context, masked_cit_context, k=300):
+    tokenized_unmasked_text = tokenizer.tokenize(unmasked_cit_context)
+    if len(tokenized_unmasked_text) > k:
+        diff_from_k = len(tokenized_unmasked_text) - k
+        cut_amount = int((diff_from_k + 3) / 2)  # Make the cut amount slightly larger thanks to +3.
+        shortened_tokenized_unmasked = tokenized_unmasked_text[cut_amount:-cut_amount]
+        shortened_unmasked_str = tokenizer.convert_tokens_to_string(shortened_tokenized_unmasked)
+
+        temp_tokenized_masked = tokenizer.tokenize(masked_cit_context)
+        shortened_tokenized_masked = temp_tokenized_masked[cut_amount:-cut_amount]
+        shortened_masked_str = tokenizer.convert_tokens_to_string(shortened_tokenized_masked)
+        return shortened_unmasked_str, shortened_masked_str
+    return unmasked_cit_context, masked_cit_context
 
 
 if __name__ == '__main__':

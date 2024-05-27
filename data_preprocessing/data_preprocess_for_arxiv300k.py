@@ -11,7 +11,7 @@ vocab_output_file = "./arxiv300k_ignore_1s_token_300/additions_to_vocab.csv"
 train_set_output_file = "./arxiv300k_ignore_1s_token_300/context_dataset_train.csv"
 eval_set_output_file = "./arxiv300k_ignore_1s_token_300/context_dataset_eval.csv"
 
-max_dataset_size = 300000
+max_dataset_size = 2500000
 random.seed(42)
 max_token_limit = 300
 
