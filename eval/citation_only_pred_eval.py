@@ -66,7 +66,6 @@ def calc_hits_at_k_score(k=10):
     for j in range(len(top_10_cit_preds)):
         pred_comparison_count += 1
         preds = top_10_cit_preds[j]
-
         for pr in preds:
             if pr == masked_token_targets[j]:
                 hit_count += 1
@@ -114,20 +113,10 @@ def complete_calc_hits_at_k_score(k=10):
     pred_comparison_count = 0
     for j in range(len(all_preds_generic)):
         pred_comparison_count += 1
-        temp_preds = all_preds_generic[j]
-
-        target_pred_found = False
-        for p in temp_preds:
-            if isinstance(p, list):
-                for p_in in p:
-                    if p_in['token_str'] == masked_token_targets[j]:
-                        hit_count += 1
-                        target_pred_found = True
-            elif p['token_str'] == masked_token_targets[j]:
+        preds = all_preds_generic[j]
+        for pr in preds:
+            if pr == masked_token_targets[j]:
                 hit_count += 1
-                target_pred_found = True
-
-            if target_pred_found:
                 break
 
     hit_at_k_metric = hit_count / pred_comparison_count
@@ -140,13 +129,8 @@ def complete_calc_exact_match_acc_score():
     pred_comparison_count = 0
     for j in range(len(all_preds_generic)):
         pred_comparison_count += 1
-        temp_preds = all_preds_generic[j]
 
-        first_pred = temp_preds[0]
-        if isinstance(first_pred, list):
-            if first_pred[0]['token_str'] == masked_token_targets[j]:
-                exact_match_count += 1
-        elif first_pred['token_str'] == masked_token_targets[j]:
+        if all_preds_generic[j][0] == masked_token_targets[j]:
             exact_match_count += 1
 
     exact_match_metric = exact_match_count / pred_comparison_count
@@ -155,26 +139,15 @@ def complete_calc_exact_match_acc_score():
 
 
 def complete_calc_mrr_score():
-    temp_reciprocal_rank = 0
     reciprocal_rank_list = []
+
     for j in range(len(all_preds_generic)):
-        temp_preds = all_preds_generic[j]
         reciprocal_rank_list.append(0)  # Start all recip ranks as 0. If match is found, then it is replaced.
+        preds = all_preds_generic[j]
 
-        target_pred_found = False
-        for p_idx in range(len(temp_preds)):
-            if isinstance(temp_preds[p_idx], list):
-                for p_in_idx in range(len(temp_preds[p_idx])):
-                    if temp_preds[p_idx][p_in_idx]['token_str'] == masked_token_targets[j]:
-                        temp_reciprocal_rank = 1 / (p_in_idx + 1)
-                        target_pred_found = True
-                        break
-            elif temp_preds[p_idx]['token_str'] == masked_token_targets[j]:
+        for p_idx in range(len(preds)):
+            if preds[p_idx] == masked_token_targets[j]:
                 temp_reciprocal_rank = 1 / (p_idx + 1)
-                target_pred_found = True
-
-            if target_pred_found:
-                # Replace 0 in the last index with the discovered RR value.
                 reciprocal_rank_list[-1] = temp_reciprocal_rank
                 break
 
@@ -302,7 +275,7 @@ if __name__ == '__main__':
 
             if len(temp_preds_list) == 10:
                 break
-            
+
         all_preds_generic.append(temp_preds_list)
 
     print("\n\n=====================> Results of the evaluation with all predictions instead of only citations:\n")
