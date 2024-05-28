@@ -14,9 +14,6 @@ parser.add_argument("--output_file", type=str, default="./outputs/eval_results.t
                                                                                           "contain outputs and results")
 
 
-MAX_ROW_LIMIT = 50  # TEMP
-
-
 def tokenizer_function(tknizer, inp_data, col_name):
     return tknizer(inp_data[col_name], truncation=True, padding='max_length', max_length=max_token_limit)
 
@@ -27,12 +24,7 @@ def read_eval_dataset(tknizer):
     label_texts = []
     masked_targets = []
 
-    row_count = -1  # TEMP
     for _, i in cit_df.iterrows():
-        row_count += 1  # TEMP
-        if row_count > MAX_ROW_LIMIT:  # TEMP
-            break  # TEMP
-
         input_texts.append(i['masked_cit_context'])
         label_texts.append(i['citation_context'])
         masked_targets.append(i['masked_token_target'])
