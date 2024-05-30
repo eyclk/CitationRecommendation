@@ -193,7 +193,7 @@ if __name__ == '__main__':
     eval_dataset = read_eval_dataset(tokenizer)
 
     mask_filler = pipeline(
-        "fill-mask", model=model, tokenizer=tokenizer, top_k=200, device=0
+        "fill-mask", model=model, tokenizer=tokenizer, top_k=100, device=0
     )
     cit_df_for_test = eval_dataset.to_pandas()
 
@@ -209,13 +209,13 @@ if __name__ == '__main__':
 
         masked_token_targets.append(cit['masked_token_target'])
 
-    print("\nPROGRESS: Pipeline mask_filler is STARTING for top 200 predictions.\n")
+    print("\nPROGRESS: Pipeline mask_filler is STARTING for top 100 predictions.\n")
 
     all_preds = mask_filler(input_texts_for_test)
 
-    print("\nPROGRESS: Pipeline mask_filler is COMPLETED for top 200 predictions.\n")
+    print("\nPROGRESS: Pipeline mask_filler is COMPLETED for top 100 predictions.\n")
 
-    print("\nPROGRESS: Selection of only top 10 citations our of top 200 predictions is STARTING.\n")
+    print("\nPROGRESS: Selection of only top 10 citations out of top 100 predictions is STARTING.\n")
 
     additional_vocab_df = pd.read_csv(additional_vocab_path)
     additional_vocab_list = list(additional_vocab_df["additions_to_vocab"])
@@ -239,7 +239,7 @@ if __name__ == '__main__':
 
         top_10_cit_preds.append(temp_top_10_cit)
 
-    print("\nPROGRESS: Selection of only top 10 citations our of top 200 predictions is COMPLETED.\n")
+    print("\nPROGRESS: Selection of only top 10 citations out of top 100 predictions is COMPLETED.\n")
 
     print("~" * 40)
     print("\n*** Calculating Hits@10 score")
