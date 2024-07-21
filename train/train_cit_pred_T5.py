@@ -161,8 +161,8 @@ if __name__ == '__main__':
     skip_training = args.skip_training
 
     # Initialize the tokenizer
-    tokenizer = T5Tokenizer.from_pretrained(pretrained_model_name_or_path, legacy=False, truncation=True,
-                                            padding='max_length', max_length=max_token_limit)
+    tokenizer = T5Tokenizer.from_pretrained(pretrained_model_name_or_path, legacy=True, truncation=True,
+                                            padding='max_length', model_max_length=max_token_limit)
 
     # Set up the model
     model = T5ForConditionalGeneration.from_pretrained(pretrained_model_name_or_path)
@@ -228,7 +228,8 @@ if __name__ == '__main__':
         args=training_args,
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["eval"],
-        data_collator=data_collator
+        data_collator=data_collator,
+        tokenizer=tokenizer
     )
 
     if not skip_training:
