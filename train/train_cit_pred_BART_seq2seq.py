@@ -166,11 +166,11 @@ if __name__ == '__main__':
     skip_training = args.skip_training
 
     # Initialize the tokenizer
-    tokenizer = BartTokenizer.from_pretrained(pretrained_model_name_or_path, legacy=True, truncation=True,
+    tokenizer = BartTokenizer.from_pretrained(pretrained_model_name_or_path, truncation=True,
                                               padding='max_length', model_max_length=max_token_limit)
 
     # Set up the model
-    model = BartForConditionalGeneration.from_pretrained(pretrained_model_name_or_path)
+    model = BartForConditionalGeneration.from_pretrained(pretrained_model_name_or_path, forced_bos_token_id=0)
 
     # Example data to view dataset structure
     """data = {
