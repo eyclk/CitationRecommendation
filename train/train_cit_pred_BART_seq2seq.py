@@ -1,7 +1,7 @@
 from typing import List, Any
 from datasets import DatasetDict, Dataset
 from transformers import (BartForConditionalGeneration, BartTokenizer, Trainer, TrainingArguments,
-                          DataCollatorWithPadding, BartConfig)
+                          DataCollatorWithPadding, BartConfig, GenerationConfig)
 import pandas as pd
 import argparse
 import math
@@ -70,16 +70,17 @@ def fill_mask(sentence, num_predictions=15):
 
     outputs = model.generate(
         input_ids,
-        max_new_tokens=50,
-        do_sample=True,
-        num_return_sequences=num_predictions,
-        top_k=50,  # Consider only the top 50 words by predicted probability
-        top_p=0.95,  # Consider only the top 95% of words by cumulative probability
-        temperature=0.7,
+        generation_config=cit_generation_config
+
+        # max_new_tokens=50,
+        # do_sample=True,
+        # num_return_sequences=num_predictions,
+        # top_k=50,  # Consider only the top 50 words by predicted probability
+        # top_p=0.95,  # Consider only the top 95% of words by cumulative probability
+        # temperature=0.7,
         # Lower temperature results in more focused predictions, higher temperature in more random predictions
 
         # num_beams=20,
-
         # eos_token_id=tokenizer.convert_tokens_to_ids("<extra_id_1>")
     )
 
@@ -179,6 +180,21 @@ if __name__ == '__main__':
     model = BartForConditionalGeneration.from_pretrained(pretrained_model_name_or_path, config=config)
     # forced_bos_token_id=0
 
+    cit_generation_config = GenerationConfig(
+        max_new_tokens=50,
+        do_sample=True,
+        top_k=50,
+        eos_token_id=model.config.eos_token_id,
+        num_return_sequences=15,
+        top_p=0.95,
+        temperature=0.7,
+
+        early_stopping=False,
+        num_beams=20,
+        no_repeat_ngram_size=3,
+        forced_bos_token_id=0
+    )
+
     # Example data to view dataset structure
     """data = {
         "train": [
@@ -219,7 +235,7 @@ if __name__ == '__main__':
         output_dir=checkpoints_location,
         overwrite_output_dir=True,
         evaluation_strategy="epoch",
-        learning_rate=2e-5,
+        learning_rate=5e-5,
         num_train_epochs=num_epochs,
         weight_decay=0.01,
         logging_strategy="epoch",
@@ -250,6 +266,7 @@ if __name__ == '__main__':
         tokenizer.save_pretrained(model_save_location)
 
     eval_results = trainer.evaluate()
-    print(f"\n*****************\n======>> Perplexity after fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")
+    print(f"\n*****************\n======>> Eval loss after fine-tuning: {eval_results['eval_loss']}\n"
+          f"======>> Perplexity after fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")
 
     calc_hits_at_10_score(eval_dataset)
