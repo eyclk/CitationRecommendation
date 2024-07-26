@@ -1,7 +1,7 @@
 from typing import List, Any
 from datasets import DatasetDict, Dataset
 from transformers import (BartForConditionalGeneration, BartTokenizer, Trainer, TrainingArguments,
-                          DataCollatorWithPadding)
+                          DataCollatorWithPadding, BartConfig)
 import pandas as pd
 import argparse
 import math
@@ -62,7 +62,7 @@ def read_dataset():
     return train_set, eval_set
 
 
-def fill_mask(sentence, num_predictions=20):
+def fill_mask(sentence, num_predictions=15):
     input_ids = tokenizer.encode(sentence.replace("<mask>", "<extra_id_0>").replace("<mask>", "").
                                  replace("<extra_id_0>", "<mask>"),
                                  return_tensors="pt", max_length=max_token_limit, truncation=True,
@@ -77,6 +77,9 @@ def fill_mask(sentence, num_predictions=20):
         top_p=0.95,  # Consider only the top 95% of words by cumulative probability
         temperature=0.7,
         # Lower temperature results in more focused predictions, higher temperature in more random predictions
+
+        # num_beams=20,
+
         # eos_token_id=tokenizer.convert_tokens_to_ids("<extra_id_1>")
     )
 
@@ -165,12 +168,16 @@ if __name__ == '__main__':
 
     skip_training = args.skip_training
 
+    # Initialize the config
+    config = BartConfig.from_pretrained(pretrained_model_name_or_path)
+
     # Initialize the tokenizer
     tokenizer = BartTokenizer.from_pretrained(pretrained_model_name_or_path, truncation=True,
                                               padding='max_length', model_max_length=max_token_limit)
 
     # Set up the model
-    model = BartForConditionalGeneration.from_pretrained(pretrained_model_name_or_path, forced_bos_token_id=0)
+    model = BartForConditionalGeneration.from_pretrained(pretrained_model_name_or_path, config=config)
+    # forced_bos_token_id=0
 
     # Example data to view dataset structure
     """data = {
