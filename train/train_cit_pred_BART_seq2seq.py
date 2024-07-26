@@ -70,23 +70,23 @@ def fill_mask(sentence, num_predictions=15):
 
     outputs = model.generate(
         input_ids,
-        generation_config=cit_generation_config
+        # generation_config=cit_generation_config
 
-        # max_new_tokens=50,
-        # do_sample=True,
-        # num_return_sequences=num_predictions,
-        # top_k=50,  # Consider only the top 50 words by predicted probability
-        # top_p=0.95,  # Consider only the top 95% of words by cumulative probability
-        # temperature=0.7,
+        max_new_tokens=50,
+        do_sample=True,
+        num_return_sequences=num_predictions,
+        top_k=50,  # Consider only the top 50 words by predicted probability
+        top_p=0.95,  # Consider only the top 95% of words by cumulative probability
+        temperature=0.7,
         # Lower temperature results in more focused predictions, higher temperature in more random predictions
 
-        # num_beams=20,
+        num_beams=20,
         # eos_token_id=tokenizer.convert_tokens_to_ids("<extra_id_1>")
     )
 
     predictions = []
     for output in outputs:
-        decoded_output = tokenizer.decode(output, skip_special_tokens=False)
+        decoded_output = tokenizer.decode(output, skip_special_tokens=True)
         """start_token = "<extra_id_0>"
         end_token = "<extra_id_1>"
         start_index = decoded_output.find(start_token) + len(start_token)
@@ -97,6 +97,10 @@ def fill_mask(sentence, num_predictions=15):
 
     # Get unique predictions
     unique_predictions: List[Any] = list(dict.fromkeys(predictions))  # Remove duplicates while preserving order
+
+    # Print the top 10 predictions
+    for i, pred in enumerate(unique_predictions, 1):
+        print(f"Prediction {i}: {pred} \n\n")
 
     last_item_of_predictions = unique_predictions[-1]
     while len(unique_predictions) < 10:
@@ -172,6 +176,10 @@ if __name__ == '__main__':
     # Initialize the config
     config = BartConfig.from_pretrained(pretrained_model_name_or_path)
 
+    # config.early_stopping = False
+    config.num_beams = 20
+    config.forced_bos_token_id = 0
+
     # Initialize the tokenizer
     tokenizer = BartTokenizer.from_pretrained(pretrained_model_name_or_path, truncation=True,
                                               padding='max_length', model_max_length=max_token_limit)
@@ -180,7 +188,7 @@ if __name__ == '__main__':
     model = BartForConditionalGeneration.from_pretrained(pretrained_model_name_or_path, config=config)
     # forced_bos_token_id=0
 
-    cit_generation_config = GenerationConfig(
+    """cit_generation_config = GenerationConfig(
         max_new_tokens=50,
         do_sample=True,
         top_k=50,
@@ -191,9 +199,9 @@ if __name__ == '__main__':
 
         early_stopping=False,
         num_beams=20,
-        no_repeat_ngram_size=3,
+        # no_repeat_ngram_size=3,
         forced_bos_token_id=0
-    )
+    )"""
 
     # Example data to view dataset structure
     """data = {
