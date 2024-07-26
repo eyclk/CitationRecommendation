@@ -1,7 +1,7 @@
 from typing import List, Any
 from datasets import DatasetDict, Dataset
 from transformers import (BartForConditionalGeneration, BartTokenizer, Trainer, TrainingArguments,
-                          DataCollatorWithPadding, BartConfig, GenerationConfig)
+                          DataCollatorWithPadding, BartConfig, GenerationConfig, DataCollatorForSeq2Seq)
 import pandas as pd
 import argparse
 import math
@@ -70,17 +70,17 @@ def fill_mask(sentence, num_predictions=15):
 
     outputs = model.generate(
         input_ids,
-        # generation_config=cit_generation_config
+        generation_config=cit_generation_config
 
-        max_new_tokens=50,
-        do_sample=True,
-        num_return_sequences=num_predictions,
-        top_k=50,  # Consider only the top 50 words by predicted probability
-        top_p=0.95,  # Consider only the top 95% of words by cumulative probability
-        temperature=0.7,
+        # max_new_tokens=50,
+        # do_sample=True,
+        # num_return_sequences=num_predictions,
+        # top_k=50,  # Consider only the top 50 words by predicted probability
+        # top_p=0.95,  # Consider only the top 95% of words by cumulative probability
+        # temperature=0.7,
         # Lower temperature results in more focused predictions, higher temperature in more random predictions
 
-        num_beams=20,
+        # num_beams=20,
         # eos_token_id=tokenizer.convert_tokens_to_ids("<extra_id_1>")
     )
 
@@ -99,8 +99,8 @@ def fill_mask(sentence, num_predictions=15):
     unique_predictions: List[Any] = list(dict.fromkeys(predictions))  # Remove duplicates while preserving order
 
     # Print the top 10 predictions
-    for i, pred in enumerate(unique_predictions, 1):
-        print(f"Prediction {i}: {pred} \n\n")
+    # for i, pred in enumerate(unique_predictions, 1):
+    #     print(f"Prediction {i}: {pred} \n\n")
 
     last_item_of_predictions = unique_predictions[-1]
     while len(unique_predictions) < 10:
@@ -174,11 +174,11 @@ if __name__ == '__main__':
     skip_training = args.skip_training
 
     # Initialize the config
-    config = BartConfig.from_pretrained(pretrained_model_name_or_path)
+    config = BartConfig.from_pretrained(pretrained_model_name_or_path, attention_dropout=0.123)
 
     # config.early_stopping = False
-    config.num_beams = 20
-    config.forced_bos_token_id = 0
+    # config.num_beams = 20
+    # config.forced_bos_token_id = 0
 
     # Initialize the tokenizer
     tokenizer = BartTokenizer.from_pretrained(pretrained_model_name_or_path, truncation=True,
@@ -188,20 +188,20 @@ if __name__ == '__main__':
     model = BartForConditionalGeneration.from_pretrained(pretrained_model_name_or_path, config=config)
     # forced_bos_token_id=0
 
-    """cit_generation_config = GenerationConfig(
-        max_new_tokens=50,
-        do_sample=True,
-        top_k=50,
-        eos_token_id=model.config.eos_token_id,
-        num_return_sequences=15,
-        top_p=0.95,
-        temperature=0.7,
+    cit_generation_config = GenerationConfig.from_model_config(model.config)
 
-        early_stopping=False,
-        num_beams=20,
-        # no_repeat_ngram_size=3,
-        forced_bos_token_id=0
-    )"""
+    cit_generation_config.max_new_tokens = 50
+    cit_generation_config.do_sample = True,
+    cit_generation_config.top_k = 50,
+    # cit_generation_config.eos_token_id=model.config.eos_token_id,
+    cit_generation_config.num_return_sequences = 20,
+    # cit_generation_config.top_p=0.95,
+    cit_generation_config.temperature = 0.7,
+
+    cit_generation_config.early_stopping = False,
+    cit_generation_config.num_beams = 20,
+    # no_repeat_ngram_size=3,
+    cit_generation_config.forced_bos_token_id = 0
 
     # Example data to view dataset structure
     """data = {
@@ -237,7 +237,7 @@ if __name__ == '__main__':
     # Preprocess the datasets
     tokenized_datasets = dataset.map(preprocess_function, batched=True)
 
-    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+    data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
 
     training_args = TrainingArguments(
         output_dir=checkpoints_location,
