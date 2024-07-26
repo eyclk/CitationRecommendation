@@ -1,7 +1,7 @@
 from typing import List, Any
 from datasets import DatasetDict, Dataset
 from transformers import (BartForConditionalGeneration, BartTokenizer, Trainer, TrainingArguments,
-                          BartConfig, GenerationConfig, DataCollatorForSeq2Seq, pipeline)  # DataCollatorWithPadding
+                          BartConfig, GenerationConfig, DataCollatorForSeq2Seq)  # DataCollatorWithPadding, pipeline
 import pandas as pd
 import argparse
 import math
@@ -30,7 +30,7 @@ parser.add_argument("--skip_training", type=bool, default=False, help="Skips tra
 def preprocess_function(examples):
     inputs = [example.replace("<mask>", "<extra_id_0>", 1).replace("<mask>", "").replace("<extra_id_0>", "<mask>")
               for example in examples["masked_cit_context"]]
-    targets = [example for example in examples["masked_token_target"]]
+    targets = [example for example in examples["citation_context"]]
 
     model_inputs = tokenizer(inputs, max_length=max_token_limit, truncation=True, padding="max_length")
     labels = tokenizer(targets, max_length=max_token_limit, truncation=True, padding="max_length")
@@ -150,7 +150,7 @@ def calc_hits_at_10_score(val_dataset):
 
 # TEMP
 # Function to generate multiple unique predictions
-def generate_multiple_predictions(generator, text, num_predictions=10):  # TEMP
+"""def generate_multiple_predictions(generator, text, num_predictions=10):  # TEMP
     # Generate predictions using beam search and sampling
     predictions = generator(
         text,
@@ -174,7 +174,7 @@ def calc_hits_at_10_score_pipeline(val_dataset):  # TEMP
     results = generate_multiple_predictions(generator, test_text)
 
     for i, result in enumerate(results):
-        print(f"Prediction {i + 1}: {result['generated_text']}")
+        print(f"Prediction {i + 1}: {result['generated_text']}")"""
 
 
 if __name__ == '__main__':
@@ -229,12 +229,13 @@ if __name__ == '__main__':
         "train": [
             {"input": "Fill the mask with an appropriate citation: models are trained end-to-end using backpropagation
              and mini-batched Adam <mask> SGD. We use dropout regularization",
-             "target": "Kingma and Ba, 2014"},
+             "target": "models are trained end-to-end using backpropagation
+             and mini-batched Adam Kingma and Ba, 2014 SGD. We use dropout regularization"},
             # Add more examples...
         ],
         "validation": [
             {"input": "Fill the mask with an appropriate citation: The new policy is <mask>.",
-             "target": "under review."},
+             "target": "The new policy is under review."},
             # Add more examples...
         ]
     }"""
