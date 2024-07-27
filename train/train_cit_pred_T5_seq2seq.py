@@ -1,7 +1,7 @@
 from typing import List, Any
 from datasets import DatasetDict, Dataset
-from transformers import (BartForConditionalGeneration, BartTokenizer, Trainer, TrainingArguments,
-                          BartConfig, GenerationConfig, DataCollatorForSeq2Seq)  # DataCollatorWithPadding, pipeline
+from transformers import (T5ForConditionalGeneration, T5Tokenizer, Trainer, TrainingArguments,
+                          T5Config, GenerationConfig, DataCollatorForSeq2Seq)
 import pandas as pd
 import argparse
 import math
@@ -28,7 +28,7 @@ parser.add_argument("--skip_training", type=bool, default=False, help="Skips tra
 
 # Preprocessing function
 def preprocess_function(examples):
-    inputs = [example.replace("<mask>", "<extra_id_0>", 1).replace("<mask>", "").replace("<extra_id_0>", "<mask>")
+    inputs = [example.replace("<mask>", "<extra_id_0>", 1).replace("<mask>", "")
               for example in examples["masked_cit_context"]]
     targets = [example for example in examples["masked_token_target"]]
 
@@ -63,8 +63,7 @@ def read_dataset():
 
 
 def fill_mask(sentence):
-    input_ids = tokenizer.encode(sentence.replace("<mask>", "<extra_id_0>").replace("<mask>", "").
-                                 replace("<extra_id_0>", "<mask>"),
+    input_ids = tokenizer.encode(sentence.replace("<mask>", "<extra_id_0>").replace("<mask>", ""),
                                  return_tensors="pt", max_length=max_token_limit, truncation=True,
                                  padding="max_length").to("cuda")
 
@@ -160,14 +159,14 @@ if __name__ == '__main__':
     skip_training = args.skip_training
 
     # Initialize the config
-    config = BartConfig.from_pretrained(pretrained_model_name_or_path, attention_dropout=0.123)
+    config = T5Config.from_pretrained(pretrained_model_name_or_path, attention_dropout=0.123)
 
     # Initialize the tokenizer
-    tokenizer = BartTokenizer.from_pretrained(pretrained_model_name_or_path, truncation=True,
-                                              padding='max_length', model_max_length=max_token_limit)
+    tokenizer = T5Tokenizer.from_pretrained(pretrained_model_name_or_path, truncation=True,
+                                            padding='max_length', model_max_length=max_token_limit)
 
     # Set up the model
-    model = BartForConditionalGeneration.from_pretrained(pretrained_model_name_or_path, config=config)
+    model = T5ForConditionalGeneration.from_pretrained(pretrained_model_name_or_path, config=config)
 
     cit_generation_config = GenerationConfig.from_model_config(model.config)
 
