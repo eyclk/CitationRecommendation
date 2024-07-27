@@ -183,8 +183,8 @@ if __name__ == '__main__':
 
     # VERY IMPORTANT PARAMETERS !!!!!!!!!!!!!!
     # cit_generation_config.repetition_penalty = 1.2
-    cit_generation_config.num_beam_groups = 10
-    cit_generation_config.diversity_penalty = 1.8
+    cit_generation_config.num_beam_groups = 5
+    cit_generation_config.diversity_penalty = 1.5
 
     # Example data to view dataset structure
     """data = {
