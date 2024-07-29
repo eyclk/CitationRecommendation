@@ -90,14 +90,16 @@ def fill_mask(sentence):
     while len(unique_predictions) < 10:
         unique_predictions.append(last_item_of_predictions)
 
-    # Return the top 10 unique predictions, or fewer if not enough unique ones are available
-    return unique_predictions[:10]
+    # Return the top 10 unique predictions, or fewer if not enough unique ones are available  !!!!!!!!!!!!!!!!!!!!!!!!
+    return unique_predictions  # [:10]
 
 
 def compare_pred_with_correct_value(predictions, ground_truth):
     if "and" in ground_truth:
         truth_tokens = ground_truth.replace(" and ", ", ").replace(",", "").split()
         for p in predictions:
+            if len(truth_tokens) != 3:
+                break
             if truth_tokens[0] in p and truth_tokens[1] in p and truth_tokens[2] in p:
                 # print(f"\n---> Ground truth citation: {ground_truth}\nCorrect Pred =====>> {p}\n")
                 return True
@@ -113,6 +115,10 @@ def compare_pred_with_correct_value(predictions, ground_truth):
             if truth_tokens[0] in p and truth_tokens[1] in p:
                 # print(f"\n---> Ground truth citation: {ground_truth}\nCorrect Pred =====>> {p}\n")
                 return True
+
+    for p in predictions:
+        if p == ground_truth:
+            return True
     return False
 
 
