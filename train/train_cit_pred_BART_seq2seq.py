@@ -90,7 +90,7 @@ def fill_mask(sentence):
     while len(unique_predictions) < 10:
         unique_predictions.append(last_item_of_predictions)
 
-    # Return the top 10 unique predictions, or fewer if not enough unique ones are available  !!!!!!!!!!!!!!!!!!!!!!!!
+    # Return the top 10 unique predictions, or fewer if not enough unique ones are available
     return unique_predictions  # [:10]
 
 
