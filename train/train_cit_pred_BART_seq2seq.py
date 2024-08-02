@@ -177,6 +177,8 @@ def calc_eval_metrics(val_dataset):
     mean_reciprocal_rank = np.mean(reciprocal_rank_list)
     print("\n=======>>> MRR score value = ", mean_reciprocal_rank, "\n")
 
+    print("\n=======>>> Recall@10 measurement value (between 0 and 1) = ", hit_at_10_metric, "\n")
+
 
 if __name__ == '__main__':
     args = parser.parse_args()
