@@ -6,6 +6,7 @@ import pandas as pd
 import argparse
 import math
 from tqdm import tqdm
+import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--max_token_limit", type=int, default=400, help="Max amount allowed for tokens used for training "
@@ -95,35 +96,62 @@ def fill_mask(sentence):
 
 
 def compare_pred_with_correct_value(predictions, ground_truth):
+    hits_at_10_flag = False
+    exact_match_flag = False
+    temp_reciprocal_rank = 0
+
     if "and" in ground_truth:
         truth_tokens = ground_truth.replace(" and ", ", ").replace(",", "").split()
-        for p in predictions:
-            if len(truth_tokens) != 3:
-                break
-            if truth_tokens[0] in p and truth_tokens[1] in p and truth_tokens[2] in p:
-                # print(f"\n---> Ground truth citation: {ground_truth}\nCorrect Pred =====>> {p}\n")
-                return True
+        if len(truth_tokens) == 3:
+            for p_idx in range(len(predictions)):
+                if (truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx] and
+                        truth_tokens[2] in predictions[p_idx]):
+                    # print(f"\n---> Ground truth citation: {ground_truth}\nCorrect Pred =====>> {p}\n")
+                    hits_at_10_flag = True
+                    temp_reciprocal_rank = 1 / (p_idx + 1)
+                    break
+            if (truth_tokens[0] in predictions[0] and truth_tokens[1] in predictions[0] and
+                    truth_tokens[2] in predictions[0]):
+                exact_match_flag = True
+
     elif "et al" in ground_truth:
         truth_tokens = ground_truth.replace(" et al.,", "").split()
-        for p in predictions:
-            if truth_tokens[0] in p and truth_tokens[1] in p:
+        for p_idx in range(len(predictions)):
+            if truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]:
                 # print(f"\n---> Ground truth citation: {ground_truth}\nCorrect Pred =====>> {p}\n")
-                return True
+                hits_at_10_flag = True
+                temp_reciprocal_rank = 1 / (p_idx + 1)
+                break
+        if truth_tokens[0] in predictions[0] and truth_tokens[1] in predictions[0]:
+            exact_match_flag = True
     else:
         truth_tokens = ground_truth.replace(",", "").split()
-        for p in predictions:
-            if truth_tokens[0] in p and truth_tokens[1] in p:
+        for p_idx in range(len(predictions)):
+            if truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]:
                 # print(f"\n---> Ground truth citation: {ground_truth}\nCorrect Pred =====>> {p}\n")
-                return True
+                hits_at_10_flag = True
+                temp_reciprocal_rank = 1 / (p_idx + 1)
+                break
+        if truth_tokens[0] in predictions[0] and truth_tokens[1] in predictions[0]:
+            exact_match_flag = True
 
-    for p in predictions:
-        if p == ground_truth:
-            return True
-    return False
+    if hits_at_10_flag is False:
+        for p_idx in range(len(predictions)):
+            if predictions[p_idx] == ground_truth:
+                hits_at_10_flag = True
+                temp_reciprocal_rank = 1 / (p_idx + 1)
+                break
+
+    if predictions[0] == ground_truth:
+        exact_match_flag = True
+
+    return hits_at_10_flag, exact_match_flag, temp_reciprocal_rank
 
 
-def calc_hits_at_10_score(val_dataset):
+def calc_eval_metrics(val_dataset):
     hit_count = 0
+    exact_match_count = 0
+    reciprocal_rank_list = []
     pred_comparison_count = 0
     for e in tqdm(val_dataset):
         pred_comparison_count += 1
@@ -132,12 +160,22 @@ def calc_hits_at_10_score(val_dataset):
 
         temp_predictions = fill_mask(masked_cit_context)
         # print(f"\n--> Ground truth cit = {target_token}\n\n")
-        is_pred_correct = compare_pred_with_correct_value(temp_predictions, target_token)
-        if is_pred_correct:
+        hits_at_10_flag, exact_match_flag, temp_reciprocal_rank = compare_pred_with_correct_value(temp_predictions,
+                                                                                                  target_token)
+        if hits_at_10_flag:
             hit_count += 1
+        if exact_match_flag:
+            exact_match_count += 1
+        reciprocal_rank_list.append(temp_reciprocal_rank)
 
     hit_at_10_metric = hit_count / pred_comparison_count
     print("\n=======>>> Hits@10 measurement value (between 0 and 1) = ", hit_at_10_metric, "\n")
+
+    exact_match_metric = exact_match_count / pred_comparison_count
+    print("\n=======>>> Exact match (accuracy) measurement value (between 0 and 1) = ", exact_match_metric, "\n")
+
+    mean_reciprocal_rank = np.mean(reciprocal_rank_list)
+    print("\n=======>>> MRR score value = ", mean_reciprocal_rank, "\n")
 
 
 if __name__ == '__main__':
@@ -260,4 +298,4 @@ if __name__ == '__main__':
     print(f"\n*****************\n======>> Eval loss after fine-tuning: {eval_results['eval_loss']}\n"
           f"======>> Perplexity after fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")
 
-    calc_hits_at_10_score(eval_dataset)
+    calc_eval_metrics(eval_dataset)
