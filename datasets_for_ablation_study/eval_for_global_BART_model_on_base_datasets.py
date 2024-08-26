@@ -8,8 +8,8 @@ import math
 from tqdm import tqdm
 import numpy as np
 
-# IMPORTANT: Make dataset path to acl200 global dataset. The rest of the code will ignore title and abstracts!!!
-# Make pretrained model acl200_global_BART_15_epoch model.
+# IMPORTANT: Set the dataset path to acl200 global dataset. The rest of the code will ignore titles and abstracts!!!
+# Set the pretrained model acl200_global_BART_15_epoch model.
 
 
 parser = argparse.ArgumentParser()
@@ -61,7 +61,7 @@ def read_dataset():
         context_without_title_abstract = i['masked_cit_context'].split("</s>")[0]
         temp_masked_context = "Fill the mask with an appropriate citation: " + context_without_title_abstract
 
-        print(temp_masked_context, "\n")  # DELETE LATER *********************************************************************
+        # print(temp_masked_context, "\n")  # DELETE LATER ***********************************************************
 
         temp_dict = {"masked_cit_context": temp_masked_context, "citation_context": i['citation_context'],
                      "masked_token_target": i['masked_token_target']}
