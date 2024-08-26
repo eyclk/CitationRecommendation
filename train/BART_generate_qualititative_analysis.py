@@ -27,7 +27,7 @@ parser.add_argument("--auto_find_batch_size", type=bool, default=False, help="Ma
 parser.add_argument("--skip_training", type=bool, default=False, help="Skips training and directly perform evaluation")
 parser.add_argument("--dataset_read_limit", type=int, default=300, help="Maximum number of rows to read from dataset.")
 parser.add_argument("--first_index_to_generate", type=int, default=50, help="First index to generate from the dataset.")
-parser.add_argument("--last_index_to_generate", type=int, default=55, help="Last index to generate from the dataset.")
+parser.add_argument("--last_index_to_generate", type=int, default=52, help="Last index to generate from the dataset.")
 
 
 # Preprocessing function
@@ -68,9 +68,9 @@ def read_dataset():
         eval_set.append(temp_dict)
 
     # MANUALLY ADD AN EXAMPLE
-    temp_masked_context = "Fill the mask with an appropriate citation: feature representation is then used as a basis for answering the question.In contrast to the previous models using attention, Dynamic Memory Networks<mask> first pass all spatial image features through a bi-directional GRU that captures spatial information from the neighboring image patches, </s> Ask Me Anything: Dynamic Memory Networks for Natural Language Processing </s> Most tasks in natural language processing can be cast into question answering (QA) problems over language input. We introduce the dynamic memory network (DMN), a unified neural network framework which processes input sequences and questions, forms semantic and episodic memories, and generates relevant answers. Questions trigger an iterative attention process which allows the model to condition its attention on the result of previous iterations. These results are then reasoned over in a hierarchical recurrent sequence model to generate answers. The DMN can be trained end-to-end and obtains state of the art results on several types of tasks and datasets: question answering (Facebook's bAbI dataset), sequence modeling for part of speech tagging (WSJ-PTB), and text classification for sentiment analysis (Stanford Sentiment Treebank). The model relies exclusively on trained word vector representations and requires no string matching or manually engineered features."
+    temp_masked_context = "Fill the mask with an appropriate citation: Twitter.Previously, a series of NLP tasks have tried to utilize the social annotations like followers , emoticons  and responses<mask> etc.re two kinds of common social labels, i.e., hyper-links and hashtags are leveraged for "
     temp_dict = {"masked_cit_context": temp_masked_context, "citation_context": "",
-                 "masked_token_target": "Kumar et al., 2015"}
+                 "masked_token_target": "Hu et al., 2015"}
 
     eval_set.append(temp_dict)
 
