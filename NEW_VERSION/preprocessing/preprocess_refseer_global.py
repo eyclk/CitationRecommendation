@@ -51,8 +51,8 @@ def assign_appropriate_year_for_null_years(ref_id, author_names):
 dict_missing_years_for_refid = {}
 
 
-# ref_id keys here are still for the masked citation tokens, and they show what these tokens refer to.
-# Their type should be integers. I WAS PREVIOUSLY WRONG.
+# ref_id keys here are for the masked citation tokens, and they show what these tokens refer to.
+# Their type should be integers.
 def create_target_token_for_ref_paper_id(ref_id, papers_df):
     target_cit_token = ""
     temp_paper_info_row = papers_df[int(ref_id)]
@@ -74,48 +74,6 @@ def create_target_token_for_ref_paper_id(ref_id, papers_df):
     return target_cit_token
 
 
-"""def concatenate_title_and_abstract_while_making_context_shorter(masked_context, temp_target, ref_id,
-                                                                papers_df, context_length=50, max_token_limit=400):
-    if int(ref_id) not in papers_df.columns:
-        return "", ""
-
-    temp_title = papers_df.at["title", int(ref_id)]
-    temp_abstract = papers_df.at["abstract", int(ref_id)]
-
-    tokenized_context = tokenizer.tokenize(masked_context)
-    mask_idx = tokenized_context.index("<mask>")
-    half_context_len = int(context_length / 2)
-    shorter_context_tokenized = tokenized_context[mask_idx - half_context_len: mask_idx + half_context_len]
-
-    shorter_context_masked = tokenizer.convert_tokens_to_string(shorter_context_tokenized)
-    # shorter_context_masked = re.sub('<mask>', ' <mask>', shorter_context_masked)
-    shorter_context_masked = shorter_context_masked.replace('<mask>', ' <mask>')
-
-    left_context = tokenized_context[mask_idx - half_context_len: mask_idx]
-    right_context = tokenized_context[mask_idx + 1: mask_idx + half_context_len]
-    target_tokenized = tokenizer.tokenize(temp_target)
-    unmasked_tokenized = left_context + target_tokenized + right_context
-
-    shorter_context_unmasked = tokenizer.convert_tokens_to_string(unmasked_tokenized)
-    # shorter_context_unmasked = re.sub('<mask>', ' <mask>', shorter_context_unmasked)
-    shorter_context_unmasked = shorter_context_unmasked.replace(temp_target, ' '+temp_target)
-
-    masked_context_with_global_info = shorter_context_masked + " </s> " + temp_title + " </s> " + temp_abstract
-    tokenized_with_global_info_masked = tokenizer.tokenize(masked_context_with_global_info)
-    if len(tokenized_with_global_info_masked) > max_token_limit:
-        trimmed_tokenized_with_global_info_masked = tokenized_with_global_info_masked[:max_token_limit]
-        masked_context_with_global_info = tokenizer.convert_tokens_to_string(trimmed_tokenized_with_global_info_masked)
-
-    unmasked_context_with_global_info = shorter_context_unmasked + " </s> " + temp_title + " </s> " + temp_abstract
-    tokenized_with_global_info_unmasked = tokenizer.tokenize(unmasked_context_with_global_info)
-    if len(tokenized_with_global_info_unmasked) > max_token_limit:
-        trimmed_tokenized_with_global_info_unmasked = tokenized_with_global_info_unmasked[:max_token_limit]
-        unmasked_context_with_global_info = tokenizer.convert_tokens_to_string(
-            trimmed_tokenized_with_global_info_unmasked)
-
-    return masked_context_with_global_info, unmasked_context_with_global_info"""
-
-
 def preprocess_dataset():
     contexts_df = pd.read_json(contexts_file)
     papers_df = pd.read_json(papers_file)
@@ -131,18 +89,9 @@ def preprocess_dataset():
     skip_count = 0
     context_df_length = len(contexts_df.columns)
 
-    total_count = -1  # DELETE
-
     for i in tqdm(range(context_df_length)):
-
-        total_count += 1  # DELETE
-        if total_count == 100:  # DELETE
-            break  # DELETE
-
         temp_context_row = contexts_df.iloc[:, i]
 
-        # For refseer; I have to use 'citing_id' values instead of 'refid' values unlike peerread!!!
-        # THIS WAS WRONG! I still need to use refid for citation token's values (similar to other datasets).
         temp_target_token = create_target_token_for_ref_paper_id(temp_context_row['refid'], papers_df)
         if temp_target_token == "":
             skip_count += 1
@@ -158,14 +107,6 @@ def preprocess_dataset():
 
         temp_masked_context = re.sub(r'=-=(.*?)-=-', ' <mask> ', temp_raw_text)
         trimmed_masked_context = trim_context_from_both_sides(temp_masked_context, context_length=context_limit)
-        # ground_truth_text = re.sub(r'=-=(.*?)-=-', f' {temp_target_token} ', temp_raw_text)
-
-        # masked_text_global, ground_truth_text_global = concatenate_title_and_abstract_while_making_context_shorter(
-        #    temp_masked_text, temp_target_token, temp_context_row['refid'], papers_df, context_length=context_len)
-
-        """if masked_text_global == "" or ground_truth_text_global == "":
-            skip_count += 1
-            continue"""
 
         ref_id = temp_context_row['refid']
         citing_id = temp_context_row['citing_id']
@@ -189,10 +130,7 @@ def preprocess_dataset():
         citing_abstract_list.append(citing_abstract)
 
         masked_cit_contexts_list.append(trimmed_masked_context)
-        # cit_contexts_list.append(ground_truth_text_global)
         masked_token_target_list.append(temp_target_token)
-
-    # count_masked_contexts_with_more_than_400_tokens(masked_cit_contexts_list)
 
     new_df_table = pd.DataFrame({'masked_cit_context': masked_cit_contexts_list,
                                  'masked_token_target': masked_token_target_list,
@@ -258,15 +196,6 @@ def split_dataset():
 
 
 tokenizer = RobertaTokenizer.from_pretrained("roberta-base", truncation=True, padding='max_length', max_length=500)
-
-
-"""def count_masked_contexts_with_more_than_400_tokens(masked_cit_contexts):
-    more_than_400_count = 0
-    for m in masked_cit_contexts:
-        tokenized_masked_text = tokenizer.encode(m)[1:-1]
-        if len(tokenized_masked_text) > 400:
-            more_than_400_count += 1
-    print("--->> Number of masked contexts with more than 400 tokens =", more_than_400_count, "\n")"""
 
 
 if __name__ == '__main__':
