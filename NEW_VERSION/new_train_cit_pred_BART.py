@@ -47,9 +47,7 @@ def read_dataset():
     for _, i in train_df.iterrows():
         temp_citing_title = i['citing_title']
         temp_citing_abstract = i['citing_abstract']
-        temp_masked_context = i['masked_cit_context']
-        # temp_target_title = i['target_title']
-        # temp_target_abstract = i['target_abstract']
+        temp_masked_context = i['masked_cit_context'].replace("OTHERCIT", "")
 
         temp_train_input = temp_citing_title + " </s> " + temp_citing_abstract + " </s> " + temp_masked_context
 
@@ -64,7 +62,7 @@ def read_dataset():
     for _, i in eval_df.iterrows():
         temp_citing_title = i['citing_title']
         temp_citing_abstract = i['citing_abstract']
-        temp_masked_context = i['masked_cit_context']
+        temp_masked_context = i['masked_cit_context'].replace("OTHERCIT", "")
 
         temp_eval_input = temp_citing_title + " </s> " + temp_citing_abstract + " </s> " + temp_masked_context
 
