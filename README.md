@@ -15,3 +15,7 @@
 - pip3 install torch torchvision torchaudio   # Use an appropriate version from https://pytorch.org/get-started/locally/
 - pip install transformers datasets
 - pip install transformers[torch]
+
+## Notes:
+
+- After cloning the project, create the following folders inside the main project folder: "checkpoints" and "models".
