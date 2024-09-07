@@ -3,13 +3,13 @@ import random
 from transformers import RobertaTokenizer
 from tqdm import tqdm
 
-contexts_file = "../../data_preprocessing/arxiv_original/contexts.json"
-papers_file = "../../data_preprocessing/arxiv_original/papers.json"
+contexts_file = "../original_datasets/arxiv_original/contexts.json"
+papers_file = "../original_datasets/arxiv_original/papers.json"
 
-dataset_output_file = "./arxiv_new/context_dataset.csv"
-vocab_output_file = "./arxiv_new/citation_item_list.csv"
-train_set_output_file = "./arxiv_new/context_dataset_train.csv"
-eval_set_output_file = "./arxiv_new/context_dataset_eval.csv"
+dataset_output_file = "./arxiv_global/context_dataset.csv"
+vocab_output_file = "./arxiv_global/citation_item_list.csv"
+train_set_output_file = "./arxiv_global/context_dataset_train.csv"
+eval_set_output_file = "./arxiv_global/context_dataset_eval.csv"
 
 random.seed(42)
 context_limit = 100
@@ -88,7 +88,7 @@ def preprocess_dataset():
             skip_count += 1
             continue
 
-        temp_masked_context = temp_context_row['masked_text'].replace('TARGETCIT', '<mask>')  # .replace('OTHERCIT', '')
+        temp_masked_context = temp_context_row['masked_text'].replace('TARGETCIT', '<mask>')
         trimmed_masked_context = trim_context_from_both_sides(temp_masked_context, context_length=context_limit)
 
         ref_id = temp_context_row['refid']

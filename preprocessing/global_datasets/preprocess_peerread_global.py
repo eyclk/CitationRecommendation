@@ -1,45 +1,31 @@
 import pandas as pd
-from dateutil.parser import parse
-import re
 from transformers import RobertaTokenizer
 
-contexts_file = "../../data_preprocessing/acl_200_original/contexts.json"
-papers_file = "../../data_preprocessing/acl_200_original/papers.json"
 
-dataset_output_file = "acl200_new/context_dataset.csv"
-vocab_output_file = "acl200_new/citation_item_list.csv"
-train_set_output_file = "acl200_new/context_dataset_train.csv"
-eval_set_output_file = "acl200_new/context_dataset_eval.csv"
+contexts_file = "../original_datasets/peerread_original/contexts.json"
+papers_file = "../original_datasets/peerread_original/papers.json"
+
+dataset_output_file = "peerread_global/context_dataset.csv"
+vocab_output_file = "peerread_global/citation_item_list.csv"
+train_set_output_file = "peerread_global/context_dataset_train.csv"
+eval_set_output_file = "peerread_global/context_dataset_eval.csv"
 
 context_limit = 100
 
 
-def check_if_string_contains_year(marker):
-    if len(marker) < 8:  # Eliminate smaller citation markers.
-        return False
-    match = re.match(r'.*([1-2][0-9]{3})', marker)
-    if match is not None:
-        return True
-    return False
-
-
-def create_target_token_for_ref_paper_id(marker_from_contexts_file):
-    temp_marker = marker_from_contexts_file.replace('(', ' ').replace(')', ' ')
-
-    if not check_if_string_contains_year(temp_marker):  # Skip marker without any years, e.g. "[S91]", "[Chodorov]"
-        return ""
-    year_from_marker_info = str(parse(temp_marker, fuzzy=True).year)
-
-    authors_from_marker = marker_from_contexts_file.split(", ")[:-1]
+def create_target_token_for_ref_paper_id(ref_id, papers_df):
+    temp_paper_info_row = papers_df[ref_id]
+    year_from_paper_info = str(int(float(temp_paper_info_row['year'])))
+    authors_from_paper_info = temp_paper_info_row['authors']
 
     target_cit_token = ""
-    if len(authors_from_marker) == 1:
-        target_cit_token = authors_from_marker[0].split(" ")[-1] + ", " + year_from_marker_info  # No capitalize()
-    elif len(authors_from_marker) == 2:
-        target_cit_token = authors_from_marker[0].split(" ")[-1] + " and " + \
-                           authors_from_marker[1].split(" ")[-1] + ", " + year_from_marker_info
-    elif len(authors_from_marker) > 2:
-        target_cit_token = authors_from_marker[0].split(" ")[-1] + " et al., " + year_from_marker_info
+    if len(authors_from_paper_info) == 1:
+        target_cit_token = authors_from_paper_info[0].split(" ")[-1].capitalize() + ", " + year_from_paper_info
+    elif len(authors_from_paper_info) == 2:
+        target_cit_token = authors_from_paper_info[0].split(" ")[-1].capitalize() + " and " + \
+                           authors_from_paper_info[1].split(" ")[-1].capitalize() + ", " + year_from_paper_info
+    elif len(authors_from_paper_info) > 2:
+        target_cit_token = authors_from_paper_info[0].split(" ")[-1].capitalize() + " et al., " + year_from_paper_info
 
     return target_cit_token
 
@@ -55,34 +41,23 @@ def preprocess_dataset():
     citing_title_list = []
     citing_abstract_list = []
 
-    skip_count = 0
-    for i in contexts_df:
-        temp_context_row = contexts_df[i]
+    context_df_length = len(contexts_df.columns)
+    for i in range(context_df_length):
+        temp_context_row = contexts_df.iloc[:, i]
 
-        marker_from_contexts_file = temp_context_row['marker']
-        temp_target_token = create_target_token_for_ref_paper_id(marker_from_contexts_file)
-        if temp_target_token == "":
-            skip_count += 1
-            continue
-
-        temp_masked_context = temp_context_row['masked_text'].replace('TARGETCIT', '<mask>')
-
+        temp_masked_context = temp_context_row['masked_text'].replace('TARGETCIT', ' <mask> ')
         trimmed_masked_context = trim_context_from_both_sides(temp_masked_context, context_length=context_limit)
 
-        if trimmed_masked_context.find("<mask>") == -1:
-            skip_count += 1
-            continue
+        temp_target_token = create_target_token_for_ref_paper_id(temp_context_row['refid'], papers_df)
 
-        ref_id = temp_context_row['context_id'].split("_")[1]
-
-        target_title = papers_df[ref_id]["title"].replace("\n", "")
-        target_abstract = papers_df[ref_id]["abstract"]
+        target_title = papers_df[temp_context_row['refid']]["title"]
+        target_abstract = papers_df[temp_context_row['refid']]["abstract"]
         target_abstract = shorten_abstract(target_abstract)
 
         target_title_list.append(target_title)
         target_abstract_list.append(target_abstract)
 
-        citing_title = papers_df[temp_context_row['citing_id']]["title"].replace("\n", "")
+        citing_title = papers_df[temp_context_row['citing_id']]["title"]
         citing_abstract = papers_df[temp_context_row['citing_id']]["abstract"]
         citing_abstract = shorten_abstract(citing_abstract)
 
@@ -98,13 +73,12 @@ def preprocess_dataset():
                                  'target_title': target_title_list, 'target_abstract': target_abstract_list})
     new_df_table.to_csv(dataset_output_file)
 
-    citations_for_vocab = list(set(masked_token_target_list))
-    vocab_additions = pd.DataFrame({'citation_items': citations_for_vocab})
-    vocab_additions.to_csv(vocab_output_file)
+    citation_item_list = list(set(masked_token_target_list))
+    citations = pd.DataFrame({'citation_items': citation_item_list})
+    citations.to_csv(vocab_output_file)
 
     print("--> Length of whole set: ", len(masked_cit_contexts_list))
-    print("--> Skip count: ", skip_count, "\n")
-    print("--> Citation items count: ", len(citations_for_vocab), "\n")
+    print("--> Citation item size: ", len(citation_item_list), "\n")
 
 
 def trim_context_from_both_sides(masked_context, context_length=100):

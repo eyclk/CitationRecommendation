@@ -1,23 +1,33 @@
 import pandas as pd
+import re
 import random
 from transformers import RobertaTokenizer
 
 
-contexts_file = "./arxiv_original/contexts.json"
-papers_file = "./arxiv_original/papers.json"
+contexts_file = "../original_datasets/refseer_original/contexts.json"
+papers_file = "../original_datasets/refseer_original/papers.json"
 
-dataset_output_file = "./arxiv_token_300/context_dataset.csv"
-vocab_output_file = "./arxiv_token_300/additions_to_vocab.csv"
-train_set_output_file = "./arxiv_token_300/context_dataset_train.csv"
-eval_set_output_file = "./arxiv_token_300/context_dataset_eval.csv"
+dataset_output_file = "./refseer_base/context_dataset.csv"
+vocab_output_file = "./refseer_base/citation_item_list.csv"
+train_set_output_file = "./refseer_base/context_dataset_train.csv"
+eval_set_output_file = "./refseer_base/context_dataset_eval.csv"
+
 random.seed(42)
+max_token_limit = 200
 
-max_token_limit = 300
+
+# This check exists to check raw data just in case. However, all raw data already contains =-=, -=-.
+def check_if_raw_text_has_special_tags(raw_text):
+    if raw_text.find('=-=') == -1:
+        return False
+    if raw_text.find('-=-') == -1:
+        return False
+    return True
 
 
 def assign_appropriate_year_for_null_years(ref_id, author_names):
     if ref_id not in dict_missing_years_for_refid.keys():
-        random_year = random.randint(1991, 2020)
+        random_year = random.randint(1960, 2014)
         year_names_tuple = [random_year, author_names]
 
         repeat_flag = True
@@ -39,12 +49,13 @@ def assign_appropriate_year_for_null_years(ref_id, author_names):
 dict_missing_years_for_refid = {}
 
 
+# ref_id keys here are actually citing_ids from the contexts of refseer. Their type should be integers.
 def create_target_token_for_ref_paper_id(ref_id, papers_df):
     target_cit_token = ""
     temp_paper_info_row = papers_df[int(ref_id)]
     authors_from_paper_info = temp_paper_info_row['authors']
 
-    if temp_paper_info_row['year'] == 'NULL':  # THERE IS NO NULL YEAR IN ARXIV !!!!
+    if temp_paper_info_row['year'] == 'NULL':
         year_from_paper_info = assign_appropriate_year_for_null_years(ref_id, authors_from_paper_info)
     else:
         year_from_paper_info = str(int(float(temp_paper_info_row['year'])))
@@ -73,28 +84,29 @@ def preprocess_dataset():
     for i in range(context_df_length):
         temp_context_row = contexts_df.iloc[:, i]
 
-        # For arxiv; I have to use 'refid' values similar to peerread!!!
+        # For refseer; I have to use 'citing_id' values instead of 'refid' values unlike peerread!!!
         temp_target_token = create_target_token_for_ref_paper_id(temp_context_row['refid'], papers_df)
-        # If author names are invalid, function above will return empty string. But this never happens.
-        if temp_target_token == "":
+        if temp_target_token == "":  # If author names are invalid, function above will return empty string.
             skip_count += 1
             continue
 
-        temp_masked_text = temp_context_row['masked_text']
-        temp_masked_text = temp_masked_text.replace('OTHERCIT', '')
-
-        masked_with_mask_text = temp_masked_text.replace('TARGETCIT', '<mask>')
-        ground_truth_text = temp_masked_text.replace('TARGETCIT', temp_target_token)
-
-        ground_truth_text, masked_with_mask_text = shorten_unmasked_context_with_more_than_k_tokens(
-            ground_truth_text, masked_with_mask_text, k=max_token_limit)
-
-        if ground_truth_text == "X" or masked_with_mask_text == "X":
+        temp_raw_text = temp_context_row['raw']
+        if not check_if_raw_text_has_special_tags(temp_raw_text):  # This if branch is never entered.
             skip_count += 1
             continue
 
-        masked_cit_contexts_list.append(masked_with_mask_text)
+        # Some examples in the dataset contain '\\' substrings that cause problems with re package. They get replaced.
+        temp_target_token = temp_target_token.replace("\\", "//")
+
+        masked_raw_text = re.sub(r'=-=(.*?)-=-', ' <mask> ', temp_raw_text)
+        ground_truth_text = re.sub(r'=-=(.*?)-=-', f' {temp_target_token} ', temp_raw_text)
+
+        ground_truth_text, masked_raw_text = shorten_unmasked_context_with_more_than_k_tokens(
+            ground_truth_text, masked_raw_text, k=max_token_limit)
+
+        masked_cit_contexts_list.append(masked_raw_text)
         cit_contexts_list.append(ground_truth_text)
+
         masked_token_target_list.append(temp_target_token)
 
     count_masked_contexts_with_more_than_k_tokens(masked_cit_contexts_list, k=max_token_limit)
@@ -104,12 +116,12 @@ def preprocess_dataset():
     new_df_table.to_csv(dataset_output_file)
 
     citations_for_vocab = list(set(masked_token_target_list))
-    vocab_additions = pd.DataFrame({'additions_to_vocab': citations_for_vocab})
+    vocab_additions = pd.DataFrame({'citation_items': citations_for_vocab})
     vocab_additions.to_csv(vocab_output_file)
 
     print("--> Length of whole set: ", len(cit_contexts_list))
     print("--> Skip count: ", skip_count, "\n")
-    print("--> Length of citations_for_vocab: ", len(citations_for_vocab), "\n")
+    print("--> Citation item size: ", len(citations_for_vocab), "\n")
 
 
 def split_dataset():
@@ -134,21 +146,19 @@ def split_dataset():
 tokenizer = RobertaTokenizer.from_pretrained("roberta-base", truncation=True, padding='max_length', max_length=500)
 
 
-def count_masked_contexts_with_more_than_k_tokens(masked_cit_contexts, k=400):
-    more_than_k_count = 0
+def count_masked_contexts_with_more_than_k_tokens(masked_cit_contexts, k=300):
+    more_than_400_count = 0
     for m in masked_cit_contexts:
         tokenized_masked_text = tokenizer.encode(m)[1:-1]
         if len(tokenized_masked_text) > k:
-            more_than_k_count += 1
-    print(f"--->> Number of masked contexts with more than {k} tokens =", more_than_k_count, "\n")
+            more_than_400_count += 1
+    print(f"--->> Number of masked contexts with more than {k} tokens = {more_than_400_count}\n")
 
 
-def shorten_unmasked_context_with_more_than_k_tokens(unmasked_cit_context, masked_cit_context, k=400):
+def shorten_unmasked_context_with_more_than_k_tokens(unmasked_cit_context, masked_cit_context, k=300):
     tokenized_unmasked_text = tokenizer.tokenize(unmasked_cit_context)
     if len(tokenized_unmasked_text) > k:
         diff_from_k = len(tokenized_unmasked_text) - k
-        if diff_from_k > 150:  # Eliminate examples that need to be cut too much
-            return "X", "X"
         cut_amount = int((diff_from_k + 3) / 2)  # Make the cut amount slightly larger thanks to +3.
         shortened_tokenized_unmasked = tokenized_unmasked_text[cut_amount:-cut_amount]
         shortened_unmasked_str = tokenizer.convert_tokens_to_string(shortened_tokenized_unmasked)

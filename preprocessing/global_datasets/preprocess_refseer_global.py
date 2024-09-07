@@ -5,13 +5,13 @@ from transformers import RobertaTokenizer
 from tqdm import tqdm
 
 
-contexts_file = "../../data_preprocessing/refseer_original/contexts.json"
-papers_file = "../../data_preprocessing/refseer_original/papers.json"
+contexts_file = "../original_datasets/refseer_original/contexts.json"
+papers_file = "../original_datasets/refseer_original/papers.json"
 
-dataset_output_file = "./refseer_new/context_dataset.csv"
-vocab_output_file = "./refseer_new/citation_item_list.csv"
-train_set_output_file = "./refseer_new/context_dataset_train.csv"
-eval_set_output_file = "./refseer_new/context_dataset_eval.csv"
+dataset_output_file = "./refseer_global/context_dataset.csv"
+vocab_output_file = "./refseer_global/citation_item_list.csv"
+train_set_output_file = "./refseer_global/context_dataset_train.csv"
+eval_set_output_file = "./refseer_global/context_dataset_eval.csv"
 
 random.seed(42)
 
@@ -78,7 +78,6 @@ def preprocess_dataset():
     contexts_df = pd.read_json(contexts_file)
     papers_df = pd.read_json(papers_file)
 
-    # cit_contexts_list = []
     masked_cit_contexts_list = []
     masked_token_target_list = []
     target_title_list = []
@@ -89,7 +88,14 @@ def preprocess_dataset():
     skip_count = 0
     context_df_length = len(contexts_df.columns)
 
+    # total_count = -1  # DELETE
+
     for i in tqdm(range(context_df_length)):
+
+        """total_count += 1  # DELETE
+        if total_count == 500:  # DELETE
+            break  # DELETE"""
+
         temp_context_row = contexts_df.iloc[:, i]
 
         temp_target_token = create_target_token_for_ref_paper_id(temp_context_row['refid'], papers_df)

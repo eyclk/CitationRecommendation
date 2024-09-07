@@ -8,8 +8,9 @@ import math
 from tqdm import tqdm
 import numpy as np
 
+
 parser = argparse.ArgumentParser()
-parser.add_argument("--max_token_limit", type=int, default=400, help="Max amount allowed for tokens used for training "
+parser.add_argument("--max_token_limit", type=int, default=350, help="Max amount allowed for tokens used for training "
                                                                      "and evaluation")
 parser.add_argument("--model_name", type=str, help="The name of the new model. This is for saved model and checkpoints")
 parser.add_argument("--checkpoints_path", type=str, default="../checkpoints", help="Path of the checkpoints folder")
@@ -29,7 +30,7 @@ parser.add_argument("--skip_training", type=bool, default=False, help="Skips tra
 
 # Preprocessing function
 def preprocess_function(examples):
-    inputs = [example.replace("<mask>", "<extra_id_0>", 1).replace("<mask>", "").replace("<extra_id_0>", "<mask>")
+    inputs = [example.replace("<mask>", "<extra_id_0>", 1).replace("<mask>", " ").replace("<extra_id_0>", "<mask>")
               for example in examples["masked_cit_context"]]
     targets = [example for example in examples["masked_token_target"]]
 
@@ -44,8 +45,13 @@ def read_dataset():
     train_set = []
 
     for _, i in train_df.iterrows():
-        temp_masked_context = "Fill the mask with an appropriate citation: " + i['masked_cit_context']
-        temp_dict = {"masked_cit_context": temp_masked_context, "citation_context": i['citation_context'],
+        temp_citing_title = i['citing_title']
+        temp_citing_abstract = i['citing_abstract']
+        temp_masked_context = i['masked_cit_context'].replace("OTHERCIT", "")
+
+        temp_train_input = temp_citing_title + " </s> " + temp_citing_abstract + " </s> " + temp_masked_context
+
+        temp_dict = {"masked_cit_context": temp_train_input,
                      "masked_token_target": i['masked_token_target']}
 
         train_set.append(temp_dict)
@@ -54,8 +60,13 @@ def read_dataset():
     eval_set = []
 
     for _, i in eval_df.iterrows():
-        temp_masked_context = "Fill the mask with an appropriate citation: " + i['masked_cit_context']
-        temp_dict = {"masked_cit_context": temp_masked_context, "citation_context": i['citation_context'],
+        temp_citing_title = i['citing_title']
+        temp_citing_abstract = i['citing_abstract']
+        temp_masked_context = i['masked_cit_context'].replace("OTHERCIT", "")
+
+        temp_eval_input = temp_citing_title + " </s> " + temp_citing_abstract + " </s> " + temp_masked_context
+
+        temp_dict = {"masked_cit_context": temp_eval_input,
                      "masked_token_target": i['masked_token_target']}
 
         eval_set.append(temp_dict)
@@ -106,7 +117,6 @@ def compare_pred_with_correct_value(predictions, ground_truth):
             for p_idx in range(len(predictions)):
                 if (truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx] and
                         truth_tokens[2] in predictions[p_idx]):
-                    # print(f"\n---> Ground truth citation: {ground_truth}\nCorrect Pred =====>> {p}\n")
                     hits_at_10_flag = True
                     temp_reciprocal_rank = 1 / (p_idx + 1)
                     break
@@ -118,7 +128,6 @@ def compare_pred_with_correct_value(predictions, ground_truth):
         truth_tokens = ground_truth.replace(" et al.,", "").split()
         for p_idx in range(len(predictions)):
             if truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]:
-                # print(f"\n---> Ground truth citation: {ground_truth}\nCorrect Pred =====>> {p}\n")
                 hits_at_10_flag = True
                 temp_reciprocal_rank = 1 / (p_idx + 1)
                 break
@@ -128,7 +137,6 @@ def compare_pred_with_correct_value(predictions, ground_truth):
         truth_tokens = ground_truth.replace(",", "").split()
         for p_idx in range(len(predictions)):
             if truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]:
-                # print(f"\n---> Ground truth citation: {ground_truth}\nCorrect Pred =====>> {p}\n")
                 hits_at_10_flag = True
                 temp_reciprocal_rank = 1 / (p_idx + 1)
                 break
@@ -223,7 +231,7 @@ if __name__ == '__main__':
     cit_generation_config.num_beams = 20
     cit_generation_config.forced_bos_token_id = 0
 
-    cit_generation_config.num_beam_groups = 5
+    cit_generation_config.num_beam_groups = 10
     cit_generation_config.diversity_penalty = 1.5
 
     # Example data to view dataset structure
@@ -272,7 +280,7 @@ if __name__ == '__main__':
         logging_strategy="epoch",
         warmup_steps=warmup_steps,
         save_strategy="epoch",
-        save_total_limit=4
+        save_total_limit=5
     )
 
     if auto_find_batch_size_flag is True:

@@ -1,13 +1,13 @@
 import pandas as pd
 
 
-contexts_file = "./peerread_original/contexts.json"
-papers_file = "./peerread_original/papers.json"
+contexts_file = "../original_datasets/peerread_original/contexts.json"
+papers_file = "../original_datasets/peerread_original/papers.json"
 
-dataset_output_file = "./peerread/context_dataset.csv"
-vocab_output_file = "./peerread/additions_to_vocab.csv"
-train_set_output_file = "./peerread/context_dataset_train.csv"
-eval_set_output_file = "./peerread/context_dataset_eval.csv"
+dataset_output_file = "./peerread_base/context_dataset.csv"
+vocab_output_file = "./peerread_base/citation_item_list.csv"
+train_set_output_file = "./peerread_base/context_dataset_train.csv"
+eval_set_output_file = "./peerread_base/context_dataset_eval.csv"
 
 
 def split_dataset():
@@ -72,7 +72,7 @@ def preprocess_dataset():
     new_df_table.to_csv(dataset_output_file)
 
     citations_for_vocab = list(set(masked_token_target_list))
-    vocab_additions = pd.DataFrame({'additions_to_vocab': citations_for_vocab})
+    vocab_additions = pd.DataFrame({'citation_items': citations_for_vocab})
     vocab_additions.to_csv(vocab_output_file)
 
 

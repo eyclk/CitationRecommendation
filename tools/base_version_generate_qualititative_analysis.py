@@ -47,7 +47,7 @@ def read_dataset():
     train_set = []
 
     for _, i in train_df.iterrows():
-        temp_masked_context = "Fill the mask with an appropriate citation: " + i['masked_cit_context']
+        temp_masked_context = i['masked_cit_context']  # "Fill the mask with an appropriate citation: " +
         temp_dict = {"masked_cit_context": temp_masked_context, "citation_context": i['citation_context'],
                      "masked_token_target": i['masked_token_target']}
 
@@ -61,14 +61,14 @@ def read_dataset():
         dataset_index += 1
         if dataset_index < first_index_to_generate or dataset_index >= last_index_to_generate:
             continue
-        temp_masked_context = "Fill the mask with an appropriate citation: " + i['masked_cit_context']
+        temp_masked_context = i['masked_cit_context']  # "Fill the mask with an appropriate citation: " +
         temp_dict = {"masked_cit_context": temp_masked_context, "citation_context": i['citation_context'],
                      "masked_token_target": i['masked_token_target']}
 
         eval_set.append(temp_dict)
 
     # MANUALLY ADD AN EXAMPLE
-    temp_masked_context = "Fill the mask with an appropriate citation: Twitter.Previously, a series of NLP tasks have tried to utilize the social annotations like followers , emoticons  and responses<mask> etc.re two kinds of common social labels, i.e., hyper-links and hashtags are leveraged for "
+    temp_masked_context = "Fill the mask with an appropriate citation: Twitter.Previously, a series of NLP tasks have tried to utilize the social annotations like followers , emoticons  and responses <mask> etc.re two kinds of common social labels, i.e., hyper-links and hashtags are leveraged for "
     temp_dict = {"masked_cit_context": temp_masked_context, "citation_context": "",
                  "masked_token_target": "Hu et al., 2015"}
 
@@ -243,7 +243,7 @@ if __name__ == '__main__':
     cit_generation_config.num_beams = 20
     cit_generation_config.forced_bos_token_id = 0
 
-    cit_generation_config.num_beam_groups = 5
+    cit_generation_config.num_beam_groups = 10
     cit_generation_config.diversity_penalty = 1.5
 
     # Example data to view dataset structure
@@ -292,7 +292,7 @@ if __name__ == '__main__':
         logging_strategy="epoch",
         warmup_steps=warmup_steps,
         save_strategy="epoch",
-        save_total_limit=4
+        save_total_limit=5
     )
 
     if auto_find_batch_size_flag is True:

@@ -1,19 +1,16 @@
 from typing import List, Any
 from datasets import DatasetDict, Dataset
-from transformers import (BartForConditionalGeneration, BartTokenizer, Trainer, TrainingArguments,
+from transformers import (BartForConditionalGeneration, BartTokenizer, TrainingArguments,   # Trainer
                           BartConfig, GenerationConfig, DataCollatorForSeq2Seq)
 import pandas as pd
 import argparse
-import math
+# import math
 from tqdm import tqdm
-import numpy as np
-
-# IMPORTANT: Set the dataset path to acl200 global dataset. The rest of the code will ignore titles and abstracts!!!
-# Set the pretrained model acl200_global_BART_15_epoch model.
+# import numpy as np
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--max_token_limit", type=int, default=400, help="Max amount allowed for tokens used for training "
+parser.add_argument("--max_token_limit", type=int, default=350, help="Max amount allowed for tokens used for training "
                                                                      "and evaluation")
 parser.add_argument("--model_name", type=str, help="The name of the new model. This is for saved model and checkpoints")
 parser.add_argument("--checkpoints_path", type=str, default="../checkpoints", help="Path of the checkpoints folder")
@@ -29,11 +26,14 @@ parser.add_argument("--auto_find_batch_size", type=bool, default=False, help="Ma
                                                                              "automatically select an appropriate "
                                                                              "batch size")
 parser.add_argument("--skip_training", type=bool, default=False, help="Skips training and directly perform evaluation")
+parser.add_argument("--dataset_read_limit", type=int, default=300, help="Maximum number of rows to read from dataset.")
+parser.add_argument("--first_index_to_generate", type=int, default=50, help="First index to generate from the dataset.")
+parser.add_argument("--last_index_to_generate", type=int, default=52, help="Last index to generate from the dataset.")
 
 
 # Preprocessing function
 def preprocess_function(examples):
-    inputs = [example.replace("<mask>", "<extra_id_0>", 1).replace("<mask>", "").replace("<extra_id_0>", "<mask>")
+    inputs = [example.replace("<mask>", "<extra_id_0>", 1).replace("<mask>", " ").replace("<extra_id_0>", "<mask>")
               for example in examples["masked_cit_context"]]
     targets = [example for example in examples["masked_token_target"]]
 
@@ -44,29 +44,46 @@ def preprocess_function(examples):
 
 
 def read_dataset():
-    train_df = pd.read_csv(train_dataset_path)
+    train_df = pd.read_csv(train_dataset_path, nrows=dataset_read_limit)
     train_set = []
 
     for _, i in train_df.iterrows():
-        temp_masked_context = "Fill the mask with an appropriate citation: " + i['masked_cit_context']
-        temp_dict = {"masked_cit_context": temp_masked_context, "citation_context": i['citation_context'],
+        temp_citing_title = i['citing_title']
+        temp_citing_abstract = i['citing_abstract']
+        temp_masked_context = i['masked_cit_context'].replace("OTHERCIT", "")
+
+        temp_train_input = temp_citing_title + " </s> " + temp_citing_abstract + " </s> " + temp_masked_context
+
+        temp_dict = {"masked_cit_context": temp_train_input,
                      "masked_token_target": i['masked_token_target']}
 
         train_set.append(temp_dict)
 
-    eval_df = pd.read_csv(eval_dataset_path)
+    eval_df = pd.read_csv(eval_dataset_path, nrows=dataset_read_limit)
     eval_set = []
 
+    dataset_index = -1
     for _, i in eval_df.iterrows():
-        context_without_title_abstract = i['masked_cit_context'].split("</s>")[0]
-        temp_masked_context = "Fill the mask with an appropriate citation: " + context_without_title_abstract
+        dataset_index += 1
+        if dataset_index < first_index_to_generate or dataset_index >= last_index_to_generate:
+            continue
+        temp_citing_title = i['citing_title']
+        temp_citing_abstract = i['citing_abstract']
+        temp_masked_context = i['masked_cit_context'].replace("OTHERCIT", "")
 
-        # print(temp_masked_context, "\n")  # DELETE LATER ***********************************************************
+        temp_eval_input = temp_citing_title + " </s> " + temp_citing_abstract + " </s> " + temp_masked_context
 
-        temp_dict = {"masked_cit_context": temp_masked_context, "citation_context": i['citation_context'],
+        temp_dict = {"masked_cit_context": temp_eval_input,
                      "masked_token_target": i['masked_token_target']}
 
         eval_set.append(temp_dict)
+
+    # MANUALLY ADD AN EXAMPLE
+    temp_masked_context = "Ask Your Neurons: A Deep Learning Approach to Visual Question Answering </s> We address a question answering task on real-world images that is set up as a Visual Turing Test. By combining latest advances in image representation and natural language processing, we propose Ask Your Neurons, a scalable, jointly trained, end-to-end formulation to this problem. </s> ed image representation rather than the full frame feature representation is then used as a basis for answering the question.In contrast to the previous models using attention, Dynamic Memory Networks  <mask>  first pass all spatial image features through a bi-directional GRU that captures spatial information from the neighboring image patches, and next retrieve an answer from a recurrent attention based ne"
+    temp_dict = {"masked_cit_context": temp_masked_context, "citation_context": "",
+                 "masked_token_target": "Kumar et al., 2015"}
+
+    eval_set.append(temp_dict)
 
     return train_set, eval_set
 
@@ -76,6 +93,7 @@ def fill_mask(sentence):
                                  replace("<extra_id_0>", "<mask>"),
                                  return_tensors="pt", max_length=max_token_limit, truncation=True,
                                  padding="max_length").to("cuda")
+    model.to("cuda")
 
     outputs = model.generate(
         input_ids,
@@ -92,8 +110,8 @@ def fill_mask(sentence):
     unique_predictions: List[Any] = list(dict.fromkeys(predictions))  # Remove duplicates while preserving order
 
     # Print the top 10 predictions
-    # for i, pred in enumerate(unique_predictions, 1):
-    #     print(f"Prediction {i}: {pred} \n\n")
+    for i, pred in enumerate(unique_predictions, 1):
+        print(f"Prediction {i}: {pred} \n\n")
 
     last_item_of_predictions = unique_predictions[-1]
     while len(unique_predictions) < 10:
@@ -114,7 +132,6 @@ def compare_pred_with_correct_value(predictions, ground_truth):
             for p_idx in range(len(predictions)):
                 if (truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx] and
                         truth_tokens[2] in predictions[p_idx]):
-                    # print(f"\n---> Ground truth citation: {ground_truth}\nCorrect Pred =====>> {p}\n")
                     hits_at_10_flag = True
                     temp_reciprocal_rank = 1 / (p_idx + 1)
                     break
@@ -126,7 +143,6 @@ def compare_pred_with_correct_value(predictions, ground_truth):
         truth_tokens = ground_truth.replace(" et al.,", "").split()
         for p_idx in range(len(predictions)):
             if truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]:
-                # print(f"\n---> Ground truth citation: {ground_truth}\nCorrect Pred =====>> {p}\n")
                 hits_at_10_flag = True
                 temp_reciprocal_rank = 1 / (p_idx + 1)
                 break
@@ -136,7 +152,6 @@ def compare_pred_with_correct_value(predictions, ground_truth):
         truth_tokens = ground_truth.replace(",", "").split()
         for p_idx in range(len(predictions)):
             if truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]:
-                # print(f"\n---> Ground truth citation: {ground_truth}\nCorrect Pred =====>> {p}\n")
                 hits_at_10_flag = True
                 temp_reciprocal_rank = 1 / (p_idx + 1)
                 break
@@ -166,6 +181,8 @@ def calc_eval_metrics(val_dataset):
         masked_cit_context = e["masked_cit_context"]
         target_token = e["masked_token_target"]
 
+        print(f"\n\n==============>>> Ground truth cit = {target_token}\n")
+        print(f"\n\n==============>>> Masked cit context = {masked_cit_context}\n")
         temp_predictions = fill_mask(masked_cit_context)
         # print(f"\n--> Ground truth cit = {target_token}\n\n")
         hits_at_10_flag, exact_match_flag, temp_reciprocal_rank = compare_pred_with_correct_value(temp_predictions,
@@ -176,7 +193,7 @@ def calc_eval_metrics(val_dataset):
             exact_match_count += 1
         reciprocal_rank_list.append(temp_reciprocal_rank)
 
-    hit_at_10_metric = hit_count / pred_comparison_count
+    """hit_at_10_metric = hit_count / pred_comparison_count
     print("\n=======>>> Hits@10 measurement value (between 0 and 1) = ", hit_at_10_metric, "\n")
 
     exact_match_metric = exact_match_count / pred_comparison_count
@@ -185,7 +202,7 @@ def calc_eval_metrics(val_dataset):
     mean_reciprocal_rank = np.mean(reciprocal_rank_list)
     print("\n=======>>> MRR score value = ", mean_reciprocal_rank, "\n")
 
-    print("\n=======>>> Recall@10 measurement value (between 0 and 1) = ", hit_at_10_metric, "\n")
+    print("\n=======>>> Recall@10 measurement value (between 0 and 1) = ", hit_at_10_metric, "\n")"""
 
 
 if __name__ == '__main__':
@@ -211,6 +228,10 @@ if __name__ == '__main__':
 
     skip_training = args.skip_training
 
+    dataset_read_limit = args.dataset_read_limit
+    first_index_to_generate = args.first_index_to_generate
+    last_index_to_generate = args.last_index_to_generate
+
     # Initialize the config
     config = BartConfig.from_pretrained(pretrained_model_name_or_path, attention_dropout=0.123)
 
@@ -231,7 +252,7 @@ if __name__ == '__main__':
     cit_generation_config.num_beams = 20
     cit_generation_config.forced_bos_token_id = 0
 
-    cit_generation_config.num_beam_groups = 5
+    cit_generation_config.num_beam_groups = 10
     cit_generation_config.diversity_penalty = 1.5
 
     # Example data to view dataset structure
@@ -280,7 +301,7 @@ if __name__ == '__main__':
         logging_strategy="epoch",
         warmup_steps=warmup_steps,
         save_strategy="epoch",
-        save_total_limit=4
+        save_total_limit=5
     )
 
     if auto_find_batch_size_flag is True:
@@ -289,7 +310,7 @@ if __name__ == '__main__':
         training_args.per_device_train_batch_size = train_and_eval_batch_sizes
         training_args.per_device_eval_batch_size = train_and_eval_batch_sizes
 
-    trainer = Trainer(
+    """trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=tokenized_datasets["train"],
@@ -298,14 +319,14 @@ if __name__ == '__main__':
         tokenizer=tokenizer
     )
 
-    """if not skip_training:
+    if not skip_training:
         trainer.train()
 
         trainer.save_model(model_save_location)
-        tokenizer.save_pretrained(model_save_location)"""
+        tokenizer.save_pretrained(model_save_location)
 
     eval_results = trainer.evaluate()
     print(f"\n*****************\n======>> Eval loss after fine-tuning: {eval_results['eval_loss']}\n"
-          f"======>> Perplexity after fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")
+          f"======>> Perplexity after fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")"""
 
     calc_eval_metrics(eval_dataset)
