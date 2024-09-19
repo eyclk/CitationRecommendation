@@ -116,7 +116,7 @@ def split_dataset():
     contexts_df = pd.read_csv(dataset_output_file)
 
     # Shuffle the DataFrame rows
-    contexts_df = contexts_df.sample(frac=1)
+    contexts_df = contexts_df.sample(frac=1, random_state=42)
 
     split_threshold = int(len(contexts_df) * 80 / 100)  # I have selected 20% as the eval set.
 
