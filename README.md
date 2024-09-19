@@ -18,9 +18,12 @@
 
 - conda create --name "env_name" python=3.8
 - conda activate "env_name"
-- pip3 install torch torchvision torchaudio   # Use an appropriate version from https://pytorch.org/get-started/locally/
+- pip3 install torch torchvision torchaudio   # Use an appropriate PyTorch version from https://pytorch.org/get-started/locally/ according to your CUDA version.
 - pip install transformers transformers[torch] datasets
 
 ## Preprocessing the Datasets from Scratch:
 
-- 
+1. Download the original datasets from the above link. Place them inside the "preprocessing/original_datasets" folder. For example, the two files downloaded for ACL200 dataset should be placed inside a folder named "acl200_original" under the "preprocessing/original_datasets" folder.
+2. You can preprocess each dataset for both base and global techniques using their corresponding code in the "preprocessing" folder.
+3. Select the code for your chosen dataset. Modify its first few lines to provide the input and output path for the code. Inputs should be the path of two files that belong to the original dataset. Outputs are going be the paths and the names of the preprocessed dataset files.
+4. After the chosen preprocessinf code is complete, there should be 4 new files generated inside the given output path. One of these files is the complete version of the preprocessed dataset. Training and evaluation splits of this complete dataset file are also created. Lastly, a complete list of unique author-date citations has been provided in another file as well.
