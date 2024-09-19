@@ -1,9 +1,9 @@
 # Citation_Prediction
 
 ## Dataset Download Links:
-- Link to our preprocessed base datasets: https://drive.google.com/drive/folders/1JH34nEXt8_p-0P9A--aQHK4yBXQfJe4v?usp=drive_link
+- Link to our preprocessed base datasets: https://drive.google.com/drive/folders/1WlqlTkSj8LwihbrQvBX5F9_0uZAGGhiE?usp=drive_link
 
-- Link to our preprocessed global datasets: [https://drive.google.com/drive/u/2/folders/1FYEoixJQSW4t_IgmY81FAsKWeax0Bx9Z](https://drive.google.com/drive/folders/1JH34nEXt8_p-0P9A--aQHK4yBXQfJe4v?usp=drive_link)
+- Link to our preprocessed global datasets: https://drive.google.com/drive/folders/1JH34nEXt8_p-0P9A--aQHK4yBXQfJe4v?usp=drive_link
 
 - Link to the original datasets: https://drive.google.com/drive/folders/11n4YVHgUPfzetJi-y5voFpmRIjiBM0lQ
 
