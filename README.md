@@ -4,7 +4,7 @@
 1. After cloning the project, create the following folders inside the main project folder: "checkpoints" and "models".
 2. Download our preprocessed datasets for both base and global technique from the Google Drive links below.
 3. (Optional) Alternatively, follow the steps shown in "Preprocessing the Datasets from Scratch" section below to recreate our preprocessed datasets.
-4. Place each preprocessed datasets inside its corresponding folder in the "cit_data" folder. 
+4. Place each preprocessed dataset inside its corresponding folder in the "cit_data" folder. 
 5. Create a new conda environment and install the dependencies shown in "Dependencies" section.
 6. To perform continual pre-training on any one of the datasets, run the corresponding script inside the "train/scripts" folder. You can also modify the parameters inside the scripts beforehand.
 
