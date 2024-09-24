@@ -22,7 +22,7 @@
 4. After the chosen preprocessinf code is complete, there should be 4 new files generated inside the given output path. One of these files is the complete version of the preprocessed dataset. Training and evaluation splits of this complete dataset file are also created. Lastly, a complete list of unique author-date citations has been provided in another file as well.
 
 ## Steps to reproduce our results:
-1. After cloning the project, create the following folders inside the main project folder: "checkpoints" and "models".
+1. After cloning the project, make sure the following folders are inside the main project folder: "checkpoints" and "models".
 2. Create a new conda environment and install the dependencies shown in "Dependencies" section.
 3. Download our preprocessed datasets for both base and global technique from the Google Drive links above.
 4. (Optional) Alternatively, follow the steps shown in "Preprocessing the Datasets from Scratch" section above to recreate our preprocessed datasets.
