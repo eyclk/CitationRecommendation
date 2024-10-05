@@ -21,6 +21,18 @@
 3. Select the code for your chosen dataset. Modify its first few lines to provide the input and output path for the code. Inputs should be the path of two files that belong to the original dataset. Outputs are going be the paths and the names of the preprocessed dataset files.
 4. After the chosen preprocessinf code is complete, there should be 4 new files generated inside the given output path. One of these files is the complete version of the preprocessed dataset. Training and evaluation splits of this complete dataset file are also created. Lastly, a complete list of unique author-date citations has been provided in another file as well.
 
+## Preprocessing Details and Token Limits:
+
+Before pre-training with citation objectives, we ensured that each context has its "$<$mask$>$" token in its middle position after tokenization. 
+
+Another critical aspect was the determination of correct lengths for citation contexts. We limited citation contexts in each dataset to an optimal number of tokens to avoid increasing time and memory costs. An exploratory analysis of context lengths shows that the contexts of ACL-200 and Peerread are significantly longer than those of the other datasets. After tokenization, we observed that 200-400 tokens were optimal for all base datasets. This limit allows sufficiently long contexts without a need for excessive amounts of padding tokens. As an exception, ACL-200 has 607 contexts that exceed the 400 limit. We have shortened them to the 400 token limit as they correspond to a small proportion of the whole number of contexts and also because the number of discarded tokens is negligible. 
+
+For our Base datasets, we set token limits to 400 for ACL-200, 400 for PeerRead, 200 for Refseer, and 300 for Arxiv.
+
+For our Global datasets, we chose the token limit as 350. Since abstracts require a higher number of tokens, we limited the local context sizes to 100 for the global versions of the datasets. We also ensured that there are 50 tokens each on the left and right sides of the <mask> tokens. We used a token limit of 200 for abstracts for all datasets since most abstracts can fit into it. Thus, all global dataset inputs were limited with 350 tokens.
+
+The token limits during training can be adjusted by modifying the "max_token_limit" parameter in the training scripts.
+
 ## Steps to reproduce our results:
 1. After cloning the project, make sure the following folders are inside the main project folder: "checkpoints" and "models".
 2. Create a new conda environment and install the dependencies shown in "Dependencies" section.
@@ -37,3 +49,9 @@
 3. Place the three downloaded files inside "cit_data/peerread_base" folder.
 4. Go inside the "train/scripts" folder and open the "run_CiteBART_peerread_base.sh" in order to modify its parameters. For example, you can change "num_epochs" parameter to 1, for a quick validation trial.
 5. Run the "run_CiteBART_peerread_base.sh" script to perform training on the peerread base dataset. The results will be printed on the terminal after the training.
+
+## Training and Evaluation Times:
+
+The pre-training for the smaller datasets, Peerread and ACL-200, lasts for 4 and 10 hours, respectively. The larger datasets, Arxiv and Refseer, take up to 9-10 days since they have similar sizes with each other.
+
+Our evaluation of the corresponding test sets takes considerable time since generating the top 10 predictions for each example is resource-intensive. Especially with our limited hardware resources, acquiring the results on the larger datasets takes up to 2 days. The smaller datasets require less time, 20 minutes for Peerread and 2 hours for ACL-200. The issue of slow evaluation for larger datasets is not exclusive to our work. The state-of-the-art work of HAtten reported their results using only a smaller subsection (10K) of the test sets due to long evaluation times.
