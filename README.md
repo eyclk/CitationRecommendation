@@ -23,15 +23,15 @@
 
 ## Preprocessing Details and Token Limits:
 
-Before pre-training with citation objectives, we ensured that each context has its "$<$mask$>$" token in its middle position after tokenization. 
+Before pre-training with citation objectives, we ensured that each context has its "<mask>" token in its middle position after tokenization. 
 
 Another critical aspect was the determination of correct lengths for citation contexts. We limited citation contexts in each dataset to an optimal number of tokens to avoid increasing time and memory costs. An exploratory analysis of context lengths shows that the contexts of ACL-200 and Peerread are significantly longer than those of the other datasets. After tokenization, we observed that 200-400 tokens were optimal for all base datasets. This limit allows sufficiently long contexts without a need for excessive amounts of padding tokens. As an exception, ACL-200 has 607 contexts that exceed the 400 limit. We have shortened them to the 400 token limit as they correspond to a small proportion of the whole number of contexts and also because the number of discarded tokens is negligible. 
 
 For our Base datasets, we set token limits to 400 for ACL-200, 400 for PeerRead, 200 for Refseer, and 300 for Arxiv.
 
-For our Global datasets, we chose the token limit as 350. Since abstracts require a higher number of tokens, we limited the local context sizes to 100 for the global versions of the datasets. We also ensured that there are 50 tokens each on the left and right sides of the <mask> tokens. We used a token limit of 200 for abstracts for all datasets since most abstracts can fit into it. Thus, all global dataset inputs were limited with 350 tokens.
+For our Global datasets, we chose the token limit as 350 for all datasets. Since abstracts require a higher number of tokens, we limited the local context sizes to 100 for the global versions of the datasets. We also ensured that there are 50 tokens each on the left and right sides of the <mask> tokens. We used a token limit of 200 for abstracts for all datasets since most abstracts can fit into it. Thus, all global dataset inputs were limited with 350 tokens.
 
-The token limits during training can be adjusted by modifying the "max_token_limit" parameter in the training scripts.
+The token limits during training can be adjusted by modifying the "max_token_limit" parameter in the training scripts. The datasets we provided have also been created according to these token limits. If you are preprocessing the datasets from scratch, you can modify the context and/or abstract token limit parameters inside the preprocessing codes.
 
 ## Steps to reproduce our results:
 1. After cloning the project, make sure the following folders are inside the main project folder: "checkpoints" and "models".
@@ -52,6 +52,12 @@ The token limits during training can be adjusted by modifying the "max_token_lim
 
 ## Training and Evaluation Times:
 
-The pre-training for the smaller datasets, Peerread and ACL-200, lasts for 4 and 10 hours, respectively. The larger datasets, Arxiv and Refseer, take up to 9-10 days since they have similar sizes with each other.
+We conducted our experiments on devices with NVIDIA RTX6000 Ada GPU and NVIDIA V100 GPU for Global and Base datasets, respectively. 
 
-Our evaluation of the corresponding test sets takes considerable time since generating the top 10 predictions for each example is resource-intensive. Especially with our limited hardware resources, acquiring the results on the larger datasets takes up to 2 days. The smaller datasets require less time, 20 minutes for Peerread and 2 hours for ACL-200. The issue of slow evaluation for larger datasets is not exclusive to our work. The state-of-the-art work of HAtten reported their results using only a smaller subsection (10K) of the test sets due to long evaluation times.
+*For Global Datasets:* The training for the smaller datasets, Peerread and ACL-200, lasts for 2 and 6 hours, respectively. The larger datasets, Arxiv and Refseer, take up to 8-9 days.
+
+*For Base Datasets:* The training for the smaller datasets, Peerread and ACL-200, lasts for 8 and 20 hours, respectively. The larger datasets, Arxiv and Refseer, take up to 14-15 days. However, we believe these relatively longer times are the result of training on the device with NVIDIA V100 GPU.
+
+Our evaluation of the corresponding test sets takes considerable time since generating the top 10 predictions for each example is resource-intensive. Especially with our limited hardware resources, acquiring the results on the larger datasets takes up to 2 days. The smaller datasets require less time, 20 minutes for Peerread and 2 hours for ACL-200. We performed our evaluations on the device with NVIDIA RTX6000 Ada GPU.
+
+The issue of slow evaluation for larger datasets is not exclusive to our work. The state-of-the-art work of HAtten reported their results using only a smaller subsection (10K) of the test sets due to long evaluation times. Unlike HAtten, we use the entire test sets for our evaluations.
