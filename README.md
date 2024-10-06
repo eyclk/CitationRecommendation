@@ -49,15 +49,3 @@ The token limits during training can be adjusted by modifying the "max_token_lim
 3. Place the three downloaded files inside "cit_data/peerread_base" folder.
 4. Go inside the "train/scripts" folder and open the "run_CiteBART_peerread_base.sh" in order to modify its parameters. For example, you can change "num_epochs" parameter to 1, for a quick validation trial.
 5. Run the "run_CiteBART_peerread_base.sh" script to perform training on the peerread base dataset. The results will be printed on the terminal after the training.
-
-## Training and Evaluation Times:
-
-We conducted our experiments on devices with NVIDIA RTX6000 Ada GPU and NVIDIA V100 GPU for Global and Base datasets, respectively. 
-
-*For Global Datasets:* The training for the smaller datasets, Peerread and ACL-200, lasts for 2 and 6 hours, respectively. The larger datasets, Arxiv and Refseer, take up to 8-9 days.
-
-*For Base Datasets:* The training for the smaller datasets, Peerread and ACL-200, lasts for 8 and 20 hours, respectively. The larger datasets, Arxiv and Refseer, take up to 14-15 days. However, we believe these relatively longer times are the result of training on the device with NVIDIA V100 GPU.
-
-Our evaluation of the corresponding test sets takes considerable time since generating the top 10 predictions for each example is resource-intensive. Especially with our limited hardware resources, acquiring the results on the larger datasets takes up to 2 days. The smaller datasets require less time, 20 minutes for Peerread and 2 hours for ACL-200. We performed our evaluations on the device with NVIDIA RTX6000 Ada GPU.
-
-The issue of slow evaluation for larger datasets is not exclusive to our work. The state-of-the-art work of HAtten reported their results using only a smaller subsection (10K) of the test sets due to long evaluation times. Unlike HAtten, we use the entire test sets for our evaluations.
