@@ -7,6 +7,8 @@
 
 - (Optional) Link to the original datasets: https://drive.google.com/drive/folders/11n4YVHgUPfzetJi-y5voFpmRIjiBM0lQ
 
+- Link to our pretrained models: https://drive.google.com/drive/folders/1OBg6W3kQw4VWPMfrXEPxN8LzTopR1jak?usp=drive_link
+
 ## Dependencies:
 
 - `conda create --name "env_name" python=3.8`
