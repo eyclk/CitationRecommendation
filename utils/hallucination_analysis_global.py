@@ -1,16 +1,17 @@
 from typing import List, Any
 # from datasets import DatasetDict, Dataset
-from transformers import (BartForConditionalGeneration, BartTokenizer,  # Trainer, TrainingArguments, DataCollatorForSeq2Seq
+from transformers import (BartForConditionalGeneration, BartTokenizer,
                           BartConfig, GenerationConfig)
+# from transformers import DataCollatorForSeq2Seq, Trainer, TrainingArguments
 import pandas as pd
 import argparse
 # import math
 from tqdm import tqdm
-# import numpy as np
+#     import numpy as np
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--max_token_limit", type=int, default=350, help="Max amount allowed for tokens used for training "
+parser.add_argument("--max_token_limit", type=int, default=400, help="Max amount allowed for tokens used for training "
                                                                      "and evaluation")
 parser.add_argument("--model_name", type=str, help="The name of the new model. This is for saved model and checkpoints")
 parser.add_argument("--checkpoints_path", type=str, default="../checkpoints", help="Path of the checkpoints folder")
@@ -26,9 +27,6 @@ parser.add_argument("--auto_find_batch_size", type=bool, default=False, help="Ma
                                                                              "automatically select an appropriate "
                                                                              "batch size")
 parser.add_argument("--skip_training", type=bool, default=False, help="Skips training and directly perform evaluation")
-parser.add_argument("--dataset_read_limit", type=int, default=300, help="Maximum number of rows to read from dataset.")
-parser.add_argument("--first_index_to_generate", type=int, default=180, help="First index to generate from the dataset.")
-parser.add_argument("--last_index_to_generate", type=int, default=183, help="Last index to generate from the dataset.")
 
 
 # Preprocessing function
@@ -44,7 +42,7 @@ def preprocess_function(examples):
 
 
 def read_dataset():
-    train_df = pd.read_csv(train_dataset_path, nrows=dataset_read_limit)
+    train_df = pd.read_csv(train_dataset_path, nrows=300)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!! REMOVE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     train_set = []
 
     for _, i in train_df.iterrows():
@@ -59,14 +57,10 @@ def read_dataset():
 
         train_set.append(temp_dict)
 
-    eval_df = pd.read_csv(eval_dataset_path, nrows=dataset_read_limit)
+    eval_df = pd.read_csv(eval_dataset_path, nrows=300)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!! REMOVE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     eval_set = []
 
-    dataset_index = -1
     for _, i in eval_df.iterrows():
-        dataset_index += 1
-        if dataset_index < first_index_to_generate or dataset_index >= last_index_to_generate:
-            continue
         temp_citing_title = i['citing_title']
         temp_citing_abstract = i['citing_abstract']
         temp_masked_context = i['masked_cit_context'].replace("OTHERCIT", "")
@@ -78,22 +72,6 @@ def read_dataset():
 
         eval_set.append(temp_dict)
 
-    # MANUALLY ADD AN EXAMPLE
-    """temp_masked_context = "Ask Your Neurons: A Deep Learning Approach to Visual Question Answering </s> We address a question answering task on real-world images that is set up as a Visual Turing Test. By combining latest advances in image representation and natural language processing, we propose Ask Your Neurons, a scalable, jointly trained, end-to-end formulation to this problem. </s> ed image representation rather than the full frame feature representation is then used as a basis for answering the question.In contrast to the previous models using attention, Dynamic Memory Networks  <mask>  first pass all spatial image features through a bi-directional GRU that captures spatial information from the neighboring image patches, and next retrieve an answer from a recurrent attention based ne"
-    temp_dict = {"masked_cit_context": temp_masked_context, "citation_context": "",
-                 "masked_token_target": "Kumar et al., 2015"}
-    eval_set.append(temp_dict)
-
-    temp_masked_context = "Visual Semantic Planning using Deep Successor Representations </s> A crucial capability of real-world intelligent agents is their ability to plan a sequence of actions to achieve their goals in the visual world. In this work, we address the problem of visual semantic planning: the task of predicting a sequence of actions from visual observations that transform a dynamic environment from an initial state to a goal state. Doing so entails knowledge about objects and their affordances, as well as actions and their preconditions and effects. We propose learning these through interacting with a visual and dynamic environment. Our proposed solution involves bootstrapping reinforcement learning with imitation learning. To ensure cross-task generalization, we develop a deep predictive model based on successor representations. Our experimental results show near optimal results across a wide range of tasks in the challenging THOR environment. The supplementary video can be accessed at the following link </s> ort the performance of our SR model trained with imitation learning  as well as with additional reinforcement learning fine-tuning .We compare our SR model with the state-of-the-art deep RL model, A3C  <mask>  , which is an advantage-based actor-critic method that allows the agent to learn from multiple copies of simulation while updating a single model in an asynchronous fashion.A3C establishes a strong ba"
-    temp_dict = {"masked_cit_context": temp_masked_context, "citation_context": "",
-                 "masked_token_target": "Mnih et al., 2016"}
-    eval_set.append(temp_dict)
-
-    temp_masked_context = "A∗ CCG Parsing with a Supertag-factored Model </s> We introduce a new CCG parsing model which is factored on lexical category assignments. Parsing is then simply a deterministic search for the most probable category sequence that supports a CCG derivation. The parser is extremely simple, with a tiny feature set, no POS tagger, and no statistical model of the derivation or dependencies. Formulating the model in this way allows a highly effective heuristic for A* parsing, which makes parsing extremely fast. Compared to the standard C&C CCG parser, our model is more accurate out-of-domain, is four times faster, has higher coverage, and is greatly simplified. We also show that using our parser improves the performance of a state-ofthe-art question answering system. </s>  If the parser fails to find any analysis of the complete sentence with this set of supertags, the supertagger re-analyses the sentence with a more relaxed beam (adaptive supertagging). 2.3 A* Parsing <mask> a) introduce A* parsing for PCFGs. The parser maintains a chart and an agenda, which is a priority queue of items to add to the chart. The agenda is sorted based on the items’ inside probability, and"
-    temp_dict = {"masked_cit_context": temp_masked_context, "citation_context": "",
-                 "masked_token_target": "Klein and Manning, 2003"}
-    eval_set.append(temp_dict)"""
-
     return train_set, eval_set
 
 
@@ -102,20 +80,11 @@ def add_spaces_after_commas(text: str) -> str:
 
 
 def fill_mask(sentence):
-    all_cit_df = pd.read_csv(all_citations_path)  #  NEW!!!!
-
-    all_cit_list = []  #  NEW!!!!
-    for _, i in all_cit_df.iterrows():  #  NEW!!!!
-        temp_cit = i['citation_items']  #  NEW!!!!
-        all_cit_list.append(temp_cit)  #  NEW!!!!
-
-
-
-
     input_ids = tokenizer.encode(sentence.replace("<mask>", "<extra_id_0>").replace("<mask>", "").
                                  replace("<extra_id_0>", "<mask>"),
                                  return_tensors="pt", max_length=max_token_limit, truncation=True,
                                  padding="max_length").to("cuda")
+
     model.to("cuda")
 
     outputs = model.generate(
@@ -136,11 +105,8 @@ def fill_mask(sentence):
     unique_predictions: List[Any] = list(dict.fromkeys(predictions))  # Remove duplicates while preserving order
 
     # Print the top 10 predictions
-    for i, pred in enumerate(unique_predictions, 1):
-        is_hallucination = False  #  NEW!!!!
-        if pred not in all_cit_list:  #  NEW!!!!
-            is_hallucination = True  #  NEW!!!!
-        print(f"Prediction {i}: {pred}   ------>   Is it hallucination?  {is_hallucination} \n\n")  #  NEW!!!!
+    # for i, pred in enumerate(unique_predictions, 1):
+    #     print(f"Prediction {i}: {pred} \n\n")
 
     last_item_of_predictions = unique_predictions[-1]
     while len(unique_predictions) < 10:
@@ -150,7 +116,7 @@ def fill_mask(sentence):
     return unique_predictions
 
 
-def compare_pred_with_correct_value(predictions, ground_truth):
+def compare_pred_with_correct_value(predictions, ground_truth, top_k=10):
     hits_at_10_flag = False
     exact_match_flag = False
     temp_reciprocal_rank = 0
@@ -158,7 +124,7 @@ def compare_pred_with_correct_value(predictions, ground_truth):
     if "and" in ground_truth:
         truth_tokens = ground_truth.replace(" and ", ", ").replace(",", "").split()
         if len(truth_tokens) == 3:
-            for p_idx in range(len(predictions)):
+            for p_idx in range(top_k):  # len(predictions)
                 if (truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx] and
                         truth_tokens[2] in predictions[p_idx]):
                     hits_at_10_flag = True
@@ -170,7 +136,7 @@ def compare_pred_with_correct_value(predictions, ground_truth):
 
     elif "et al" in ground_truth:
         truth_tokens = ground_truth.replace(" et al.,", "").split()
-        for p_idx in range(len(predictions)):
+        for p_idx in range(top_k):  # len(predictions)
             if truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]:
                 hits_at_10_flag = True
                 temp_reciprocal_rank = 1 / (p_idx + 1)
@@ -179,7 +145,7 @@ def compare_pred_with_correct_value(predictions, ground_truth):
             exact_match_flag = True
     else:
         truth_tokens = ground_truth.replace(",", "").split()
-        for p_idx in range(len(predictions)):
+        for p_idx in range(top_k):  # len(predictions)
             if truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]:
                 hits_at_10_flag = True
                 temp_reciprocal_rank = 1 / (p_idx + 1)
@@ -188,7 +154,7 @@ def compare_pred_with_correct_value(predictions, ground_truth):
             exact_match_flag = True
 
     if hits_at_10_flag is False:
-        for p_idx in range(len(predictions)):
+        for p_idx in range(top_k):  # len(predictions)
             if predictions[p_idx] == ground_truth:
                 hits_at_10_flag = True
                 temp_reciprocal_rank = 1 / (p_idx + 1)
@@ -200,38 +166,180 @@ def compare_pred_with_correct_value(predictions, ground_truth):
     return hits_at_10_flag, exact_match_flag, temp_reciprocal_rank
 
 
-def calc_eval_metrics(val_dataset):
-    hit_count = 0
+def check_if_word_is_hallucinated(word, all_cit_list):
+    no_hal_flag = False
+    for c in all_cit_list:
+        if word in c:
+            no_hal_flag = True
+    return not no_hal_flag
+
+
+def find_hallucination_rates(predictions, ground_truth, top_k=10):
+    all_cit_df = pd.read_csv(all_citations_path)
+
+    all_cit_list = []
+    for _, i in all_cit_df.iterrows():
+        temp_cit = i['citation_items']
+        all_cit_list.append(temp_cit)
+
+    fabricated_word_hal_count = 0
+
+    for p_id in range(top_k):
+        temp_pred = predictions[p_id]
+        if temp_pred not in all_cit_list:
+            if "and" in temp_pred:
+                pred_tokens = temp_pred.replace(" and ", ", ").replace(",", "").split()
+                if len(pred_tokens) == 3 and (check_if_word_is_hallucinated(pred_tokens[0], all_cit_list) or
+                                              check_if_word_is_hallucinated(pred_tokens[1], all_cit_list)):
+                    fabricated_word_hal_count += 1
+            elif "et al" in temp_pred:
+                pred_tokens = temp_pred.replace(" et al.,", "").split()
+                if check_if_word_is_hallucinated(pred_tokens[0], all_cit_list):
+                    fabricated_word_hal_count += 1
+            else:
+                pred_tokens = temp_pred.replace(",", "").split()
+                if check_if_word_is_hallucinated(pred_tokens[0], all_cit_list):
+                    fabricated_word_hal_count += 1
+
+    hallucination_count = 0
+    only_author_names_correct_count = 0
+    only_year_correct_count = 0
+    wrong_cite_format_count = 0
+    only_single_author_name_correct_count = 0
+
+    if "and" in ground_truth:
+        truth_tokens = ground_truth.replace(" and ", ", ").replace(",", "").split()
+        if len(truth_tokens) == 3:
+            for p_idx in range(top_k):  # len(predictions)
+                if predictions[p_idx] not in all_cit_list:
+                    # print(f"Prediction {p_idx+1}: {predictions[p_idx]}")  # TEMP
+                    hallucination_count += 1
+                    if (truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]
+                            and truth_tokens[2] not in predictions[p_idx]):
+                        only_author_names_correct_count += 1
+                    elif (truth_tokens[0] in predictions[p_idx] or truth_tokens[1] in predictions[p_idx]
+                            and truth_tokens[2] not in predictions[p_idx]):
+                        only_single_author_name_correct_count += 1
+                    elif (truth_tokens[0] not in predictions[p_idx] and truth_tokens[1] not in predictions[p_idx]
+                            and truth_tokens[2] in predictions[p_idx]):
+                        only_year_correct_count += 1
+                    elif (" and " in predictions[p_idx] and ".," in predictions[p_idx]) or "&" in predictions[p_idx]:
+                        wrong_cite_format_count += 1
+    elif "et al" in ground_truth:
+        truth_tokens = ground_truth.replace(" et al.,", "").split()
+        for p_idx in range(top_k):  # len(predictions)
+            if predictions[p_idx] not in all_cit_list:
+                # print(f"Prediction {p_idx + 1}: {predictions[p_idx]}")  # TEMP
+                hallucination_count += 1
+                if truth_tokens[0] in predictions[p_idx] and truth_tokens[1] not in predictions[p_idx]:
+                    only_author_names_correct_count += 1
+                elif truth_tokens[0] not in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]:
+                    only_year_correct_count += 1
+                elif (" and " in predictions[p_idx] and ".," in predictions[p_idx]) or "&" in predictions[p_idx]:
+                    wrong_cite_format_count += 1
+    else:
+        truth_tokens = ground_truth.replace(",", "").split()
+        for p_idx in range(top_k):  # len(predictions)
+            if predictions[p_idx] not in all_cit_list:
+                # print(f"Prediction {p_idx + 1}: {predictions[p_idx]}")  # TEMP
+                hallucination_count += 1
+                if truth_tokens[0] in predictions[p_idx] and truth_tokens[1] not in predictions[p_idx]:
+                    only_author_names_correct_count += 1
+                elif truth_tokens[0] not in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]:
+                    only_year_correct_count += 1
+                elif (" and " in predictions[p_idx] and ".," in predictions[p_idx]) or "&" in predictions[p_idx]:
+                    wrong_cite_format_count += 1
+
+    return hallucination_count, only_author_names_correct_count, only_year_correct_count, wrong_cite_format_count, fabricated_word_hal_count, only_single_author_name_correct_count
+
+
+def calc_eval_metrics(val_dataset, top_k=10):
+    #     hit_count = 0
     exact_match_count = 0
     reciprocal_rank_list = []
     pred_comparison_count = 0
+
+    total_hal_count = 0
+    total_only_author_names_correct_count = 0
+    total_only_year_correct_count = 0
+    total_incorrect_format_count = 0
+    total_fabricated_word_hal_count = 0
+    total_single_author_name_correct_count = 0
+
+    if_hit_at_k_hal_count = 0
+    if_exact_match_hal_count = 0
+
     for e in tqdm(val_dataset):
         pred_comparison_count += 1
         masked_cit_context = e["masked_cit_context"]
         target_token = e["masked_token_target"]
 
-        print(f"\n\n==============>>> Ground truth cit = {target_token}\n")
-        print(f"==============>>> Masked cit context = {masked_cit_context}\n")
         temp_predictions = fill_mask(masked_cit_context)
         # print(f"\n--> Ground truth cit = {target_token}\n\n")
-        hits_at_10_flag, exact_match_flag, temp_reciprocal_rank = compare_pred_with_correct_value(temp_predictions,
-                                                                                                  target_token)
-        if hits_at_10_flag:
-            hit_count += 1
+        hits_at_k_flag, exact_match_flag, temp_reciprocal_rank = compare_pred_with_correct_value(temp_predictions,
+                                                                                                  target_token, top_k=top_k)
+
+        (hallucination_count, only_author_names_correct_count, only_year_correct_count, incorrect_format_count,
+         fabricated_word_hal_count, only_single_author_name_correct_count) = find_hallucination_rates(temp_predictions, target_token, top_k=top_k)
+
+        total_hal_count += hallucination_count
+        total_only_author_names_correct_count += only_author_names_correct_count
+        total_only_year_correct_count += only_year_correct_count
+        total_incorrect_format_count += incorrect_format_count
+        total_fabricated_word_hal_count += fabricated_word_hal_count
+        total_single_author_name_correct_count += only_single_author_name_correct_count
+
+        if hits_at_k_flag:
+            if_hit_at_k_hal_count += hallucination_count
+        if exact_match_flag:
+            if_exact_match_hal_count += hallucination_count
+
+        """if hits_at_10_flag:
+            hit_count += 1"""
         if exact_match_flag:
             exact_match_count += 1
         reciprocal_rank_list.append(temp_reciprocal_rank)
 
-    """hit_at_10_metric = hit_count / pred_comparison_count
-    print("\n=======>>> Hits@10 measurement value (between 0 and 1) = ", hit_at_10_metric, "\n")
+    #     hit_at_10_metric = hit_count / pred_comparison_count
+    # print("\n=======>>> Hits@10 measurement value (between 0 and 1) = ", hit_at_10_metric, "\n")
 
-    exact_match_metric = exact_match_count / pred_comparison_count
-    print("\n=======>>> Exact match (accuracy) measurement value (between 0 and 1) = ", exact_match_metric, "\n")
+    #     exact_match_metric = exact_match_count / pred_comparison_count
+    #     print("\n=======>>> Exact match (accuracy) measurement value (between 0 and 1) = ", exact_match_metric, "\n")
+    #     mean_reciprocal_rank = np.mean(reciprocal_rank_list)
+    #     print("\n=======>>> MRR score value = ", mean_reciprocal_rank, "\n")
+    #     print("\n=======>>> Recall@10 measurement value (between 0 and 1) = ", hit_at_10_metric, "\n")
 
-    mean_reciprocal_rank = np.mean(reciprocal_rank_list)
-    print("\n=======>>> MRR score value = ", mean_reciprocal_rank, "\n")
+    # print("***********************************************************************************************\n")
 
-    print("\n=======>>> Recall@10 measurement value (between 0 and 1) = ", hit_at_10_metric, "\n")"""
+    print(f"\n=======>>> Total number of predictions in top-{top_k} case = {pred_comparison_count * top_k}\n")
+
+    hal_rate = total_hal_count / (pred_comparison_count * top_k)
+    print("\n=======>>> Hallucination rate (any prediction that does not belong to all citations list of the dataset is considered to be hallucination) = ", hal_rate, "\n")
+
+    # print(f"\n=======>>> Total number of hallucinated predictions = {total_hal_count} in {pred_comparison_count} * 10\n")  #TEMP
+
+    partial_correct_rate = (total_only_author_names_correct_count+total_single_author_name_correct_count+total_only_year_correct_count) / (pred_comparison_count * top_k)
+    print("\n=======>>> Partially correct predictions rate among hallucinated predictions = ", partial_correct_rate, "\n")
+    only_author_names_correct_rate = total_only_author_names_correct_count / (pred_comparison_count * top_k)
+    print("\n=======>>> Rate of hallucinated predictions with only their author names correct (in \"and\" case, both names should be correct) = ", only_author_names_correct_rate, "\n")
+    total_single_author_name_correct_count_rate = total_single_author_name_correct_count / (pred_comparison_count * top_k)
+    print("\n=======>>> Rate of hallucinated predictions with only one of the author names correct in \"and\" case = ", total_single_author_name_correct_count_rate, "\n")
+
+    only_year_correct_rate = total_only_year_correct_count / (pred_comparison_count * top_k)
+    print("\n=======>>> Rate of hallucinated predictions with only their publication years correct = ", only_year_correct_rate, "\n")
+    incorrect_format_rate = total_incorrect_format_count / (pred_comparison_count * top_k)
+    print("\n=======>>> Rate of hallucinated predictions with incorrect citation format = ", incorrect_format_rate, "\n")
+    other_hallucinations_rate = (total_hal_count - total_only_author_names_correct_count - total_single_author_name_correct_count - total_only_year_correct_count - total_incorrect_format_count) / (pred_comparison_count * top_k)
+    print("\n=======>>> Rate of hallucinated predictions with other hallucinations (Correct citation format with irrelevant author-year combinations that has no matches with ground truth) = ", other_hallucinations_rate, "\n")
+
+    fabricated_word_hal_rate = total_fabricated_word_hal_count / (pred_comparison_count * top_k)
+    print("\n=======>>> Rate of hallucinated predictions with fabricated words (independent rate from other rates) = ", fabricated_word_hal_rate, "\n")
+
+    if_hit_at_k_hal_rate = if_hit_at_k_hal_count / (pred_comparison_count * top_k)
+    print(f"\n=======>>> Rate of all hallucinated predictions in top-{top_k} in cases where there is a hit = {if_hit_at_k_hal_rate}\n")
+
+    if_exact_match_hal_rate = if_exact_match_hal_count / (pred_comparison_count * top_k)
+    print(f"\n=======>>> Rate of all hallucinated predictions in top-{top_k} in cases where there is an exact match = {if_exact_match_hal_rate}\n")
 
 
 if __name__ == '__main__':
@@ -246,7 +354,7 @@ if __name__ == '__main__':
     train_dataset_path = dataset_folder + "/context_dataset_train.csv"
     eval_dataset_path = dataset_folder + "/context_dataset_eval.csv"
 
-    all_citations_path = dataset_folder + "/citation_item_list.csv"  #  NEW!!!!
+    all_citations_path = dataset_folder + "/citation_item_list.csv"  # NEW!!!!
 
     num_epochs = args.num_epochs
 
@@ -258,10 +366,6 @@ if __name__ == '__main__':
     pretrained_model_name_or_path = args.pretrained_model_path
 
     skip_training = args.skip_training
-
-    dataset_read_limit = args.dataset_read_limit
-    first_index_to_generate = args.first_index_to_generate
-    last_index_to_generate = args.last_index_to_generate
 
     # Initialize the config
     config = BartConfig.from_pretrained(pretrained_model_name_or_path, attention_dropout=0.123)
@@ -339,9 +443,9 @@ if __name__ == '__main__':
         training_args.auto_find_batch_size = True
     else:
         training_args.per_device_train_batch_size = train_and_eval_batch_sizes
-        training_args.per_device_eval_batch_size = train_and_eval_batch_sizes"""
+        training_args.per_device_eval_batch_size = train_and_eval_batch_sizes
 
-    """trainer = Trainer(
+    trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=tokenized_datasets["train"],
@@ -360,4 +464,4 @@ if __name__ == '__main__':
     print(f"\n*****************\n======>> Eval loss after fine-tuning: {eval_results['eval_loss']}\n"
           f"======>> Perplexity after fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")"""
 
-    calc_eval_metrics(eval_dataset)
+    calc_eval_metrics(eval_dataset, top_k=10)

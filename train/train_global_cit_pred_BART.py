@@ -74,7 +74,19 @@ def read_dataset():
     return train_set, eval_set
 
 
+def add_spaces_after_commas(text: str) -> str:
+    return ', '.join(part.strip() for part in text.split(','))  #  NEW!!!!
+
+
 def fill_mask(sentence):
+    all_cit_df = pd.read_csv(all_citations_path)  # NEW!!!!
+
+    all_cit_list = []  # NEW!!!!
+    for _, i in all_cit_df.iterrows():  # NEW!!!!
+        temp_cit = i['citation_items']  # NEW!!!!
+        all_cit_list.append(temp_cit)  # NEW!!!!
+
+
     input_ids = tokenizer.encode(sentence.replace("<mask>", "<extra_id_0>").replace("<mask>", "").
                                  replace("<extra_id_0>", "<mask>"),
                                  return_tensors="pt", max_length=max_token_limit, truncation=True,
@@ -89,6 +101,9 @@ def fill_mask(sentence):
     for output in outputs:
         decoded_output = tokenizer.decode(output, skip_special_tokens=True)
         temp_prediction = decoded_output.strip()
+
+        temp_prediction = add_spaces_after_commas(temp_prediction)  # Add spaces after commas       NEW!!!!!!!!
+
         predictions.append(temp_prediction)
 
     # Get unique predictions
@@ -199,6 +214,8 @@ if __name__ == '__main__':
     dataset_folder = args.dataset_path
     train_dataset_path = dataset_folder + "/context_dataset_train.csv"
     eval_dataset_path = dataset_folder + "/context_dataset_eval.csv"
+
+    all_citations_path = dataset_folder + "/citation_item_list.csv"  # NEW!!!!
 
     num_epochs = args.num_epochs
 

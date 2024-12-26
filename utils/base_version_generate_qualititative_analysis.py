@@ -1,7 +1,7 @@
 from typing import List, Any
-from datasets import DatasetDict, Dataset
-from transformers import (BartForConditionalGeneration, BartTokenizer, TrainingArguments,
-                          BartConfig, GenerationConfig, DataCollatorForSeq2Seq)  # Trainer
+# from datasets import DatasetDict, Dataset
+from transformers import (BartForConditionalGeneration, BartTokenizer,
+                          BartConfig, GenerationConfig)  # Trainer, DataCollatorForSeq2Seq, TrainingArguments
 import pandas as pd
 import argparse
 # import math
@@ -26,8 +26,8 @@ parser.add_argument("--auto_find_batch_size", type=bool, default=False, help="Ma
                                                                              "batch size")
 parser.add_argument("--skip_training", type=bool, default=False, help="Skips training and directly perform evaluation")
 parser.add_argument("--dataset_read_limit", type=int, default=300, help="Maximum number of rows to read from dataset.")
-parser.add_argument("--first_index_to_generate", type=int, default=50, help="First index to generate from the dataset.")
-parser.add_argument("--last_index_to_generate", type=int, default=52, help="Last index to generate from the dataset.")
+parser.add_argument("--first_index_to_generate", type=int, default=120, help="First index to generate from the dataset.")
+parser.add_argument("--last_index_to_generate", type=int, default=123, help="Last index to generate from the dataset.")
 
 
 # Preprocessing function
@@ -68,16 +68,28 @@ def read_dataset():
         eval_set.append(temp_dict)
 
     # MANUALLY ADD AN EXAMPLE
-    temp_masked_context = "g minimax loss function: minGmaxDV=Ex∼pdata+Ez∼pzwhere x is the sample from the pdata distribution; z is randomly generated and lies in some latent space. There are many ways to structure G. The DCGAN  <mask>  uses fractionally-strided convolutions to upsample images instead of fully-connected neurons as shown in Figure 1.The generator G is updated to fool the discriminator D into wrongly classifying the ge"
+    """temp_masked_context = "g minimax loss function: minGmaxDV=Ex∼pdata+Ez∼pzwhere x is the sample from the pdata distribution; z is randomly generated and lies in some latent space. There are many ways to structure G. The DCGAN  <mask>  uses fractionally-strided convolutions to upsample images instead of fully-connected neurons as shown in Figure 1.The generator G is updated to fool the discriminator D into wrongly classifying the ge"
     temp_dict = {"masked_cit_context": temp_masked_context, "citation_context": "",
                  "masked_token_target": "Radford et al., 2015"}
 
-    eval_set.append(temp_dict)
+    eval_set.append(temp_dict)"""
 
     return train_set, eval_set
 
 
+def add_spaces_after_commas(text: str) -> str:
+    return ', '.join(part.strip() for part in text.split(','))  #  NEW!!!!
+
+
 def fill_mask(sentence):
+    all_cit_df = pd.read_csv(all_citations_path)  # NEW!!!!
+
+    all_cit_list = []  # NEW!!!!
+    for _, i in all_cit_df.iterrows():  # NEW!!!!
+        temp_cit = i['additions_to_vocab']  # NEW!!!!
+        all_cit_list.append(temp_cit)  # NEW!!!!
+
+
     input_ids = tokenizer.encode(sentence.replace("<mask>", "<extra_id_0>").replace("<mask>", "").
                                  replace("<extra_id_0>", "<mask>"),
                                  return_tensors="pt", max_length=max_token_limit, truncation=True,
@@ -93,6 +105,9 @@ def fill_mask(sentence):
     for output in outputs:
         decoded_output = tokenizer.decode(output, skip_special_tokens=True)
         temp_prediction = decoded_output.strip()
+
+        temp_prediction = add_spaces_after_commas(temp_prediction)  # Add spaces after commas       NEW!!!!!!!!
+
         predictions.append(temp_prediction)
 
     # Get unique predictions
@@ -100,7 +115,10 @@ def fill_mask(sentence):
 
     # Print the top 10 predictions
     for i, pred in enumerate(unique_predictions, 1):
-        print(f"\nPrediction {i}: {pred} \n")
+        is_hallucination = False  # NEW!!!!
+        if pred not in all_cit_list:  # NEW!!!!
+            is_hallucination = True  # NEW!!!!
+        print(f"Prediction {i}: {pred}   ------>   Is it hallucination?  {is_hallucination} \n\n")  # NEW!!!!
 
     last_item_of_predictions = unique_predictions[-1]
     while len(unique_predictions) < 10:
@@ -174,7 +192,7 @@ def calc_eval_metrics(val_dataset):
         target_token = e["masked_token_target"]
 
         print(f"\n\n==============>>> Ground truth cit = {target_token}\n")
-        print(f"\n\n==============>>> Masked cit context = {masked_cit_context}\n")
+        print(f"==============>>> Masked cit context = {masked_cit_context}\n")
         temp_predictions = fill_mask(masked_cit_context)
         hits_at_10_flag, exact_match_flag, temp_reciprocal_rank = compare_pred_with_correct_value(temp_predictions,
                                                                                                   target_token)
@@ -207,6 +225,8 @@ if __name__ == '__main__':
     dataset_folder = args.dataset_path
     train_dataset_path = dataset_folder + "/context_dataset_train.csv"
     eval_dataset_path = dataset_folder + "/context_dataset_eval.csv"
+
+    all_citations_path = dataset_folder + "/citation_item_list.csv"  # NEW!!!!
 
     num_epochs = args.num_epochs
 
@@ -263,7 +283,7 @@ if __name__ == '__main__':
 
     train_dataset, eval_dataset = read_dataset()
 
-    data = {
+    """data = {
         "train": train_dataset,
         "eval": eval_dataset
     }
@@ -299,7 +319,7 @@ if __name__ == '__main__':
         training_args.auto_find_batch_size = True
     else:
         training_args.per_device_train_batch_size = train_and_eval_batch_sizes
-        training_args.per_device_eval_batch_size = train_and_eval_batch_sizes
+        training_args.per_device_eval_batch_size = train_and_eval_batch_sizes"""
 
     """trainer = Trainer(
         model=model,
