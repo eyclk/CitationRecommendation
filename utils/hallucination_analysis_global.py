@@ -464,6 +464,9 @@ if __name__ == '__main__':
     print(f"\n*****************\n======>> Eval loss after fine-tuning: {eval_results['eval_loss']}\n"
           f"======>> Perplexity after fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")"""
 
+    print("\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ TOP-10 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
     calc_eval_metrics(eval_dataset, top_k=10)
+    print("\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ TOP-5 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
     calc_eval_metrics(eval_dataset, top_k=5)
+    print("\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ TOP-3 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
     calc_eval_metrics(eval_dataset, top_k=3)
