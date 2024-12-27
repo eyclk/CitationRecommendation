@@ -42,7 +42,7 @@ def preprocess_function(examples):
 
 
 def read_dataset():
-    train_df = pd.read_csv(train_dataset_path)
+    train_df = pd.read_csv(train_dataset_path, nrows=300)  # TEMP
     train_set = []
 
     for _, i in train_df.iterrows():
@@ -57,7 +57,7 @@ def read_dataset():
 
         train_set.append(temp_dict)
 
-    eval_df = pd.read_csv(eval_dataset_path)
+    eval_df = pd.read_csv(eval_dataset_path, nrows=300)  # TEMP
     eval_set = []
 
     for _, i in eval_df.iterrows():
@@ -85,7 +85,7 @@ def fill_mask(sentence):
                                  return_tensors="pt", max_length=max_token_limit, truncation=True,
                                  padding="max_length").to("cuda")
 
-    model.to("cuda")
+    # model.to("cuda")
 
     outputs = model.generate(
         input_ids,
@@ -166,7 +166,7 @@ def compare_pred_with_correct_value(predictions, ground_truth, top_k=10):
     return hits_at_10_flag, exact_match_flag, temp_reciprocal_rank
 
 
-def check_if_word_is_hallucinated(word, all_cit_list):
+def check_if_word_is_hallucinated(word):
     no_hal_flag = False
     for c in all_cit_list:
         if word in c:
@@ -175,12 +175,12 @@ def check_if_word_is_hallucinated(word, all_cit_list):
 
 
 def find_hallucination_rates(predictions, ground_truth, top_k=10):
-    all_cit_df = pd.read_csv(all_citations_path)
+    """all_cit_df = pd.read_csv(all_citations_path)  # TEMP
 
     all_cit_list = []
     for _, i in all_cit_df.iterrows():
         temp_cit = i['citation_items']
-        all_cit_list.append(temp_cit)
+        all_cit_list.append(temp_cit)"""
 
     fabricated_word_hal_count = 0
 
@@ -189,16 +189,16 @@ def find_hallucination_rates(predictions, ground_truth, top_k=10):
         if temp_pred not in all_cit_list:
             if "and" in temp_pred:
                 pred_tokens = temp_pred.replace(" and ", ", ").replace(",", "").split()
-                if len(pred_tokens) == 3 and (check_if_word_is_hallucinated(pred_tokens[0], all_cit_list) or
-                                              check_if_word_is_hallucinated(pred_tokens[1], all_cit_list)):
+                if len(pred_tokens) == 3 and (check_if_word_is_hallucinated(pred_tokens[0]) or
+                                              check_if_word_is_hallucinated(pred_tokens[1])):
                     fabricated_word_hal_count += 1
             elif "et al" in temp_pred:
                 pred_tokens = temp_pred.replace(" et al.,", "").split()
-                if check_if_word_is_hallucinated(pred_tokens[0], all_cit_list):
+                if check_if_word_is_hallucinated(pred_tokens[0]):
                     fabricated_word_hal_count += 1
             else:
                 pred_tokens = temp_pred.replace(",", "").split()
-                if check_if_word_is_hallucinated(pred_tokens[0], all_cit_list):
+                if check_if_word_is_hallucinated(pred_tokens[0]):
                     fabricated_word_hal_count += 1
 
     hallucination_count = 0
@@ -375,7 +375,7 @@ if __name__ == '__main__':
                                               padding='max_length', model_max_length=max_token_limit)
 
     # Set up the model
-    model = BartForConditionalGeneration.from_pretrained(pretrained_model_name_or_path, config=config)
+    model = BartForConditionalGeneration.from_pretrained(pretrained_model_name_or_path, config=config).to("cuda")
 
     cit_generation_config = GenerationConfig.from_model_config(model.config)
 
@@ -463,6 +463,13 @@ if __name__ == '__main__':
     eval_results = trainer.evaluate()
     print(f"\n*****************\n======>> Eval loss after fine-tuning: {eval_results['eval_loss']}\n"
           f"======>> Perplexity after fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")"""
+
+    all_cit_df = pd.read_csv(all_citations_path)
+
+    all_cit_list = []
+    for _, n in all_cit_df.iterrows():
+        temp_cit = n['citation_items']
+        all_cit_list.append(temp_cit)
 
     print("\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ TOP-10 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
     calc_eval_metrics(eval_dataset, top_k=10)
