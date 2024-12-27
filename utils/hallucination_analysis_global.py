@@ -42,7 +42,7 @@ def preprocess_function(examples):
 
 
 def read_dataset():
-    train_df = pd.read_csv(train_dataset_path, nrows=300)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!! REMOVE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    train_df = pd.read_csv(train_dataset_path)
     train_set = []
 
     for _, i in train_df.iterrows():
@@ -57,7 +57,7 @@ def read_dataset():
 
         train_set.append(temp_dict)
 
-    eval_df = pd.read_csv(eval_dataset_path, nrows=300)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!! REMOVE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    eval_df = pd.read_csv(eval_dataset_path)
     eval_set = []
 
     for _, i in eval_df.iterrows():
@@ -465,3 +465,5 @@ if __name__ == '__main__':
           f"======>> Perplexity after fine-tuning: {math.exp(eval_results['eval_loss']):.2f}\n\n")"""
 
     calc_eval_metrics(eval_dataset, top_k=10)
+    calc_eval_metrics(eval_dataset, top_k=5)
+    calc_eval_metrics(eval_dataset, top_k=3)
