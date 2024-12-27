@@ -42,7 +42,7 @@ def preprocess_function(examples):
 
 
 def read_dataset():
-    train_df = pd.read_csv(train_dataset_path, nrows=300)  # TEMP
+    train_df = pd.read_csv(train_dataset_path)  # , nrows=300
     train_set = []
 
     for _, i in train_df.iterrows():
@@ -57,7 +57,7 @@ def read_dataset():
 
         train_set.append(temp_dict)
 
-    eval_df = pd.read_csv(eval_dataset_path, nrows=300)  # TEMP
+    eval_df = pd.read_csv(eval_dataset_path)  # , nrows=300
     eval_set = []
 
     for _, i in eval_df.iterrows():
@@ -76,7 +76,7 @@ def read_dataset():
 
 
 def add_spaces_after_commas(text: str) -> str:
-    return ', '.join(part.strip() for part in text.split(','))  #  NEW!!!!
+    return ', '.join(part.strip() for part in text.split(','))
 
 
 def fill_mask(sentence):
@@ -97,7 +97,7 @@ def fill_mask(sentence):
         decoded_output = tokenizer.decode(output, skip_special_tokens=True)
         temp_prediction = decoded_output.strip()
 
-        temp_prediction = add_spaces_after_commas(temp_prediction)  # Add spaces after commas       NEW!!!!!!!!
+        temp_prediction = add_spaces_after_commas(temp_prediction)  # Add spaces after commas
 
         predictions.append(temp_prediction)
 
@@ -117,7 +117,7 @@ def fill_mask(sentence):
 
 
 def compare_pred_with_correct_value(predictions, ground_truth, top_k=10):
-    hits_at_10_flag = False
+    hits_at_k_flag = {10: False, 5: False, 3: False}
     exact_match_flag = False
     temp_reciprocal_rank = 0
 
@@ -127,7 +127,16 @@ def compare_pred_with_correct_value(predictions, ground_truth, top_k=10):
             for p_idx in range(top_k):  # len(predictions)
                 if (truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx] and
                         truth_tokens[2] in predictions[p_idx]):
-                    hits_at_10_flag = True
+                    if p_idx < 3:
+                        hits_at_k_flag[10] = True
+                        hits_at_k_flag[5] = True
+                        hits_at_k_flag[3] = True
+                    elif p_idx < 5:
+                        hits_at_k_flag[10] = True
+                        hits_at_k_flag[5] = True
+                    elif p_idx < 10:
+                        hits_at_k_flag[10] = True
+
                     temp_reciprocal_rank = 1 / (p_idx + 1)
                     break
             if (truth_tokens[0] in predictions[0] and truth_tokens[1] in predictions[0] and
@@ -136,34 +145,60 @@ def compare_pred_with_correct_value(predictions, ground_truth, top_k=10):
 
     elif "et al" in ground_truth:
         truth_tokens = ground_truth.replace(" et al.,", "").split()
-        for p_idx in range(top_k):  # len(predictions)
+        for p_idx in range(top_k):
             if truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]:
-                hits_at_10_flag = True
+                if p_idx < 3:
+                    hits_at_k_flag[10] = True
+                    hits_at_k_flag[5] = True
+                    hits_at_k_flag[3] = True
+                elif p_idx < 5:
+                    hits_at_k_flag[10] = True
+                    hits_at_k_flag[5] = True
+                elif p_idx < 10:
+                    hits_at_k_flag[10] = True
+
                 temp_reciprocal_rank = 1 / (p_idx + 1)
                 break
         if truth_tokens[0] in predictions[0] and truth_tokens[1] in predictions[0]:
             exact_match_flag = True
     else:
         truth_tokens = ground_truth.replace(",", "").split()
-        for p_idx in range(top_k):  # len(predictions)
+        for p_idx in range(top_k):
             if truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]:
-                hits_at_10_flag = True
+                if p_idx < 3:
+                    hits_at_k_flag[10] = True
+                    hits_at_k_flag[5] = True
+                    hits_at_k_flag[3] = True
+                elif p_idx < 5:
+                    hits_at_k_flag[10] = True
+                    hits_at_k_flag[5] = True
+                elif p_idx < 10:
+                    hits_at_k_flag[10] = True
+
                 temp_reciprocal_rank = 1 / (p_idx + 1)
                 break
         if truth_tokens[0] in predictions[0] and truth_tokens[1] in predictions[0]:
             exact_match_flag = True
 
-    if hits_at_10_flag is False:
-        for p_idx in range(top_k):  # len(predictions)
-            if predictions[p_idx] == ground_truth:
-                hits_at_10_flag = True
-                temp_reciprocal_rank = 1 / (p_idx + 1)
-                break
+    # if hits_at_k_flag[10] is False:
+    for p_idx in range(top_k):
+        if predictions[p_idx] == ground_truth:
+            if p_idx < 3:
+                hits_at_k_flag[10] = True
+                hits_at_k_flag[5] = True
+                hits_at_k_flag[3] = True
+            elif p_idx < 5:
+                hits_at_k_flag[10] = True
+                hits_at_k_flag[5] = True
+            elif p_idx < 10:
+                hits_at_k_flag[10] = True
+            # temp_reciprocal_rank = 1 / (p_idx + 1)
+            break
 
     if predictions[0] == ground_truth:
         exact_match_flag = True
 
-    return hits_at_10_flag, exact_match_flag, temp_reciprocal_rank
+    return hits_at_k_flag, exact_match_flag, temp_reciprocal_rank
 
 
 def check_if_word_is_hallucinated(word):
@@ -174,15 +209,8 @@ def check_if_word_is_hallucinated(word):
     return not no_hal_flag
 
 
-def find_hallucination_rates(predictions, ground_truth, top_k=10):
-    """all_cit_df = pd.read_csv(all_citations_path)  # TEMP
-
-    all_cit_list = []
-    for _, i in all_cit_df.iterrows():
-        temp_cit = i['citation_items']
-        all_cit_list.append(temp_cit)"""
-
-    fabricated_word_hal_count = 0
+def find_hallucination_rates_for_top_10_5_3(predictions, ground_truth, top_k=10):
+    fabricated_word_hal_count = {10: 0, 5: 0, 3: 0}
 
     for p_id in range(top_k):
         temp_pred = predictions[p_id]
@@ -191,83 +219,221 @@ def find_hallucination_rates(predictions, ground_truth, top_k=10):
                 pred_tokens = temp_pred.replace(" and ", ", ").replace(",", "").split()
                 if len(pred_tokens) == 3 and (check_if_word_is_hallucinated(pred_tokens[0]) or
                                               check_if_word_is_hallucinated(pred_tokens[1])):
-                    fabricated_word_hal_count += 1
+                    if p_id < 3:
+                        fabricated_word_hal_count[10] += 1
+                        fabricated_word_hal_count[5] += 1
+                        fabricated_word_hal_count[3] += 1
+                    elif p_id < 5:
+                        fabricated_word_hal_count[10] += 1
+                        fabricated_word_hal_count[5] += 1
+                    elif p_id < 10:
+                        fabricated_word_hal_count[10] += 1
             elif "et al" in temp_pred:
                 pred_tokens = temp_pred.replace(" et al.,", "").split()
                 if check_if_word_is_hallucinated(pred_tokens[0]):
-                    fabricated_word_hal_count += 1
+                    if p_id < 3:
+                        fabricated_word_hal_count[10] += 1
+                        fabricated_word_hal_count[5] += 1
+                        fabricated_word_hal_count[3] += 1
+                    elif p_id < 5:
+                        fabricated_word_hal_count[10] += 1
+                        fabricated_word_hal_count[5] += 1
+                    elif p_id < 10:
+                        fabricated_word_hal_count[10] += 1
             else:
                 pred_tokens = temp_pred.replace(",", "").split()
                 if check_if_word_is_hallucinated(pred_tokens[0]):
-                    fabricated_word_hal_count += 1
+                    if p_id < 3:
+                        fabricated_word_hal_count[10] += 1
+                        fabricated_word_hal_count[5] += 1
+                        fabricated_word_hal_count[3] += 1
+                    elif p_id < 5:
+                        fabricated_word_hal_count[10] += 1
+                        fabricated_word_hal_count[5] += 1
+                    elif p_id < 10:
+                        fabricated_word_hal_count[10] += 1
 
-    hallucination_count = 0
-    only_author_names_correct_count = 0
-    only_year_correct_count = 0
-    wrong_cite_format_count = 0
-    only_single_author_name_correct_count = 0
+    hallucination_count = {10: 0, 5: 0, 3: 0}
+    only_author_names_correct_count = {10: 0, 5: 0, 3: 0}
+    only_year_correct_count = {10: 0, 5: 0, 3: 0}
+    wrong_cite_format_count = {10: 0, 5: 0, 3: 0}
+    only_single_author_name_correct_count = {10: 0, 5: 0, 3: 0}
 
     if "and" in ground_truth:
         truth_tokens = ground_truth.replace(" and ", ", ").replace(",", "").split()
         if len(truth_tokens) == 3:
-            for p_idx in range(top_k):  # len(predictions)
+            for p_idx in range(top_k):
                 if predictions[p_idx] not in all_cit_list:
                     # print(f"Prediction {p_idx+1}: {predictions[p_idx]}")  # TEMP
-                    hallucination_count += 1
+                    if p_idx < 3:
+                        hallucination_count[10] += 1
+                        hallucination_count[5] += 1
+                        hallucination_count[3] += 1
+                    elif p_idx < 5:
+                        hallucination_count[10] += 1
+                        hallucination_count[5] += 1
+                    elif p_idx < 10:
+                        hallucination_count[10] += 1
+
                     if (truth_tokens[0] in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]
                             and truth_tokens[2] not in predictions[p_idx]):
-                        only_author_names_correct_count += 1
+                        if p_idx < 3:
+                            only_author_names_correct_count[10] += 1
+                            only_author_names_correct_count[5] += 1
+                            only_author_names_correct_count[3] += 1
+                        elif p_idx < 5:
+                            only_author_names_correct_count[10] += 1
+                            only_author_names_correct_count[5] += 1
+                        elif p_idx < 10:
+                            only_author_names_correct_count[10] += 1
+
                     elif (truth_tokens[0] in predictions[p_idx] or truth_tokens[1] in predictions[p_idx]
                             and truth_tokens[2] not in predictions[p_idx]):
-                        only_single_author_name_correct_count += 1
+                        if p_idx < 3:
+                            only_single_author_name_correct_count[10] += 1
+                            only_single_author_name_correct_count[5] += 1
+                            only_single_author_name_correct_count[3] += 1
+                        elif p_idx < 5:
+                            only_single_author_name_correct_count[10] += 1
+                            only_single_author_name_correct_count[5] += 1
+                        elif p_idx < 10:
+                            only_single_author_name_correct_count[10] += 1
+
                     elif (truth_tokens[0] not in predictions[p_idx] and truth_tokens[1] not in predictions[p_idx]
                             and truth_tokens[2] in predictions[p_idx]):
-                        only_year_correct_count += 1
+                        if p_idx < 3:
+                            only_year_correct_count[10] += 1
+                            only_year_correct_count[5] += 1
+                            only_year_correct_count[3] += 1
+                        elif p_idx < 5:
+                            only_year_correct_count[10] += 1
+                            only_year_correct_count[5] += 1
+                        elif p_idx < 10:
+                            only_year_correct_count[10] += 1
+
                     elif (" and " in predictions[p_idx] and ".," in predictions[p_idx]) or "&" in predictions[p_idx]:
-                        wrong_cite_format_count += 1
+                        if p_idx < 3:
+                            wrong_cite_format_count[10] += 1
+                            wrong_cite_format_count[5] += 1
+                            wrong_cite_format_count[3] += 1
+                        elif p_idx < 5:
+                            wrong_cite_format_count[10] += 1
+                            wrong_cite_format_count[5] += 1
+                        elif p_idx < 10:
+                            wrong_cite_format_count[10] += 1
+
     elif "et al" in ground_truth:
         truth_tokens = ground_truth.replace(" et al.,", "").split()
-        for p_idx in range(top_k):  # len(predictions)
+        for p_idx in range(top_k):
             if predictions[p_idx] not in all_cit_list:
                 # print(f"Prediction {p_idx + 1}: {predictions[p_idx]}")  # TEMP
-                hallucination_count += 1
+                if p_idx < 3:
+                    hallucination_count[10] += 1
+                    hallucination_count[5] += 1
+                    hallucination_count[3] += 1
+                elif p_idx < 5:
+                    hallucination_count[10] += 1
+                    hallucination_count[5] += 1
+                elif p_idx < 10:
+                    hallucination_count[10] += 1
+
                 if truth_tokens[0] in predictions[p_idx] and truth_tokens[1] not in predictions[p_idx]:
-                    only_author_names_correct_count += 1
+                    if p_idx < 3:
+                        only_author_names_correct_count[10] += 1
+                        only_author_names_correct_count[5] += 1
+                        only_author_names_correct_count[3] += 1
+                    elif p_idx < 5:
+                        only_author_names_correct_count[10] += 1
+                        only_author_names_correct_count[5] += 1
+                    elif p_idx < 10:
+                        only_author_names_correct_count[10] += 1
+
                 elif truth_tokens[0] not in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]:
-                    only_year_correct_count += 1
+                    if p_idx < 3:
+                        only_year_correct_count[10] += 1
+                        only_year_correct_count[5] += 1
+                        only_year_correct_count[3] += 1
+                    elif p_idx < 5:
+                        only_year_correct_count[10] += 1
+                        only_year_correct_count[5] += 1
+                    elif p_idx < 10:
+                        only_year_correct_count[10] += 1
+
                 elif (" and " in predictions[p_idx] and ".," in predictions[p_idx]) or "&" in predictions[p_idx]:
-                    wrong_cite_format_count += 1
+                    if p_idx < 3:
+                        wrong_cite_format_count[10] += 1
+                        wrong_cite_format_count[5] += 1
+                        wrong_cite_format_count[3] += 1
+                    elif p_idx < 5:
+                        wrong_cite_format_count[10] += 1
+                        wrong_cite_format_count[5] += 1
+                    elif p_idx < 10:
+                        wrong_cite_format_count[10] += 1
     else:
         truth_tokens = ground_truth.replace(",", "").split()
-        for p_idx in range(top_k):  # len(predictions)
+        for p_idx in range(top_k):
             if predictions[p_idx] not in all_cit_list:
                 # print(f"Prediction {p_idx + 1}: {predictions[p_idx]}")  # TEMP
-                hallucination_count += 1
+                if p_idx < 3:
+                    hallucination_count[10] += 1
+                    hallucination_count[5] += 1
+                    hallucination_count[3] += 1
+                elif p_idx < 5:
+                    hallucination_count[10] += 1
+                    hallucination_count[5] += 1
+                elif p_idx < 10:
+                    hallucination_count[10] += 1
+
                 if truth_tokens[0] in predictions[p_idx] and truth_tokens[1] not in predictions[p_idx]:
-                    only_author_names_correct_count += 1
+                    if p_idx < 3:
+                        only_author_names_correct_count[10] += 1
+                        only_author_names_correct_count[5] += 1
+                        only_author_names_correct_count[3] += 1
+                    elif p_idx < 5:
+                        only_author_names_correct_count[10] += 1
+                        only_author_names_correct_count[5] += 1
+                    elif p_idx < 10:
+                        only_author_names_correct_count[10] += 1
+
                 elif truth_tokens[0] not in predictions[p_idx] and truth_tokens[1] in predictions[p_idx]:
-                    only_year_correct_count += 1
+                    if p_idx < 3:
+                        only_year_correct_count[10] += 1
+                        only_year_correct_count[5] += 1
+                        only_year_correct_count[3] += 1
+                    elif p_idx < 5:
+                        only_year_correct_count[10] += 1
+                        only_year_correct_count[5] += 1
+                    elif p_idx < 10:
+                        only_year_correct_count[10] += 1
+
                 elif (" and " in predictions[p_idx] and ".," in predictions[p_idx]) or "&" in predictions[p_idx]:
-                    wrong_cite_format_count += 1
+                    if p_idx < 3:
+                        wrong_cite_format_count[10] += 1
+                        wrong_cite_format_count[5] += 1
+                        wrong_cite_format_count[3] += 1
+                    elif p_idx < 5:
+                        wrong_cite_format_count[10] += 1
+                        wrong_cite_format_count[5] += 1
+                    elif p_idx < 10:
+                        wrong_cite_format_count[10] += 1
 
     return hallucination_count, only_author_names_correct_count, only_year_correct_count, wrong_cite_format_count, fabricated_word_hal_count, only_single_author_name_correct_count
 
 
 def calc_eval_metrics(val_dataset, top_k=10):
-    #     hit_count = 0
     exact_match_count = 0
     reciprocal_rank_list = []
     pred_comparison_count = 0
 
-    total_hal_count = 0
-    total_only_author_names_correct_count = 0
-    total_only_year_correct_count = 0
-    total_incorrect_format_count = 0
-    total_fabricated_word_hal_count = 0
-    total_single_author_name_correct_count = 0
+    total_hal_count = {10: 0, 5: 0, 3: 0}
+    total_only_author_names_correct_count = {10: 0, 5: 0, 3: 0}
+    total_only_year_correct_count = {10: 0, 5: 0, 3: 0}
+    total_incorrect_format_count = {10: 0, 5: 0, 3: 0}
+    total_fabricated_word_hal_count = {10: 0, 5: 0, 3: 0}
+    total_single_author_name_correct_count = {10: 0, 5: 0, 3: 0}
 
-    if_hit_at_k_hal_count = 0
-    if_exact_match_hal_count = 0
+    if_hit_at_k_hal_count = {10: 0, 5: 0, 3: 0}
+    if_exact_match_hal_count = {10: 0, 5: 0, 3: 0}
 
     for e in tqdm(val_dataset):
         pred_comparison_count += 1
@@ -279,67 +445,158 @@ def calc_eval_metrics(val_dataset, top_k=10):
         hits_at_k_flag, exact_match_flag, temp_reciprocal_rank = compare_pred_with_correct_value(temp_predictions,
                                                                                                   target_token, top_k=top_k)
 
-        (hallucination_count, only_author_names_correct_count, only_year_correct_count, incorrect_format_count,
-         fabricated_word_hal_count, only_single_author_name_correct_count) = find_hallucination_rates(temp_predictions, target_token, top_k=top_k)
+        (hallucination_count, only_author_names_correct_count, only_year_correct_count, incorrect_format_count, fabricated_word_hal_count,
+         only_single_author_name_correct_count) = find_hallucination_rates_for_top_10_5_3(temp_predictions, target_token, top_k=top_k)
 
-        total_hal_count += hallucination_count
-        total_only_author_names_correct_count += only_author_names_correct_count
-        total_only_year_correct_count += only_year_correct_count
-        total_incorrect_format_count += incorrect_format_count
-        total_fabricated_word_hal_count += fabricated_word_hal_count
-        total_single_author_name_correct_count += only_single_author_name_correct_count
+        total_hal_count[10] += hallucination_count[10]
+        total_hal_count[5] += hallucination_count[5]
+        total_hal_count[3] += hallucination_count[3]
 
-        if hits_at_k_flag:
-            if_hit_at_k_hal_count += hallucination_count
+        total_only_author_names_correct_count[10] += only_author_names_correct_count[10]
+        total_only_author_names_correct_count[5] += only_author_names_correct_count[5]
+        total_only_author_names_correct_count[3] += only_author_names_correct_count[3]
+
+        total_only_year_correct_count[10] += only_year_correct_count[10]
+        total_only_year_correct_count[5] += only_year_correct_count[5]
+        total_only_year_correct_count[3] += only_year_correct_count[3]
+
+        total_incorrect_format_count[10] += incorrect_format_count[10]
+        total_incorrect_format_count[5] += incorrect_format_count[5]
+        total_incorrect_format_count[3] += incorrect_format_count[3]
+
+        total_fabricated_word_hal_count[10] += fabricated_word_hal_count[10]
+        total_fabricated_word_hal_count[5] += fabricated_word_hal_count[5]
+        total_fabricated_word_hal_count[3] += fabricated_word_hal_count[3]
+
+        total_single_author_name_correct_count[10] += only_single_author_name_correct_count[10]
+        total_single_author_name_correct_count[5] += only_single_author_name_correct_count[5]
+        total_single_author_name_correct_count[3] += only_single_author_name_correct_count[3]
+
+        if hits_at_k_flag[3]:
+            if_hit_at_k_hal_count[10] += hallucination_count[10]
+            if_hit_at_k_hal_count[5] += hallucination_count[5]
+            if_hit_at_k_hal_count[3] += hallucination_count[3]
+        elif hits_at_k_flag[5]:
+            if_hit_at_k_hal_count[10] += hallucination_count[10]
+            if_hit_at_k_hal_count[5] += hallucination_count[5]
+        elif hits_at_k_flag[10]:
+            if_hit_at_k_hal_count[10] += hallucination_count[10]
+
         if exact_match_flag:
-            if_exact_match_hal_count += hallucination_count
+            if_exact_match_hal_count[10] += hallucination_count[10]
+            if_exact_match_hal_count[5] += hallucination_count[5]
+            if_exact_match_hal_count[3] += hallucination_count[3]
 
-        """if hits_at_10_flag:
-            hit_count += 1"""
         if exact_match_flag:
             exact_match_count += 1
         reciprocal_rank_list.append(temp_reciprocal_rank)
 
     #     hit_at_10_metric = hit_count / pred_comparison_count
-    # print("\n=======>>> Hits@10 measurement value (between 0 and 1) = ", hit_at_10_metric, "\n")
-
     #     exact_match_metric = exact_match_count / pred_comparison_count
     #     print("\n=======>>> Exact match (accuracy) measurement value (between 0 and 1) = ", exact_match_metric, "\n")
     #     mean_reciprocal_rank = np.mean(reciprocal_rank_list)
     #     print("\n=======>>> MRR score value = ", mean_reciprocal_rank, "\n")
     #     print("\n=======>>> Recall@10 measurement value (between 0 and 1) = ", hit_at_10_metric, "\n")
 
-    # print("***********************************************************************************************\n")
 
-    print(f"\n=======>>> Total number of predictions in top-{top_k} case = {pred_comparison_count * top_k}\n")
+    print("\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ TOP-10 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
-    hal_rate = total_hal_count / (pred_comparison_count * top_k)
-    print("\n=======>>> Hallucination rate (any prediction that does not belong to all citations list of the dataset is considered to be hallucination) = ", hal_rate, "\n")
+    print(f"\n=======>>> Total number of predictions in top-10 case = {pred_comparison_count * 10}\n")
 
+    hal_rate_10 = total_hal_count[10] / (pred_comparison_count * 10)
+    print("\n=======>>> Hallucination rate (any prediction that does not belong to all citations list of the dataset is considered to be hallucination) = ", hal_rate_10, "\n")
     # print(f"\n=======>>> Total number of hallucinated predictions = {total_hal_count} in {pred_comparison_count} * 10\n")  #TEMP
 
-    partial_correct_rate = (total_only_author_names_correct_count+total_single_author_name_correct_count+total_only_year_correct_count) / (pred_comparison_count * top_k)
-    print("\n=======>>> Partially correct predictions rate among hallucinated predictions = ", partial_correct_rate, "\n")
-    only_author_names_correct_rate = total_only_author_names_correct_count / (pred_comparison_count * top_k)
-    print("\n=======>>> Rate of hallucinated predictions with only their author names correct (in \"and\" case, both names should be correct) = ", only_author_names_correct_rate, "\n")
-    total_single_author_name_correct_count_rate = total_single_author_name_correct_count / (pred_comparison_count * top_k)
-    print("\n=======>>> Rate of hallucinated predictions with only one of the author names correct in \"and\" case = ", total_single_author_name_correct_count_rate, "\n")
+    partial_correct_rate_10 = (total_only_author_names_correct_count[10]+total_single_author_name_correct_count[10]+total_only_year_correct_count[10]) / (pred_comparison_count * 10)
+    print("\n=======>>> Partially correct predictions rate among hallucinated predictions = ", partial_correct_rate_10, "\n")
+    only_author_names_correct_rate_10 = total_only_author_names_correct_count[10] / (pred_comparison_count * 10)
+    print("\n=======>>> Rate of hallucinated predictions with only their author names correct (in \"and\" case, both names should be correct) = ", only_author_names_correct_rate_10, "\n")
+    total_single_author_name_correct_count_rate_10 = total_single_author_name_correct_count[10] / (pred_comparison_count * 10)
+    print("\n=======>>> Rate of hallucinated predictions with only one of the author names correct in \"and\" case = ", total_single_author_name_correct_count_rate_10, "\n")
 
-    only_year_correct_rate = total_only_year_correct_count / (pred_comparison_count * top_k)
-    print("\n=======>>> Rate of hallucinated predictions with only their publication years correct = ", only_year_correct_rate, "\n")
-    incorrect_format_rate = total_incorrect_format_count / (pred_comparison_count * top_k)
-    print("\n=======>>> Rate of hallucinated predictions with incorrect citation format = ", incorrect_format_rate, "\n")
-    other_hallucinations_rate = (total_hal_count - total_only_author_names_correct_count - total_single_author_name_correct_count - total_only_year_correct_count - total_incorrect_format_count) / (pred_comparison_count * top_k)
-    print("\n=======>>> Rate of hallucinated predictions with other hallucinations (Correct citation format with irrelevant author-year combinations that has no matches with ground truth) = ", other_hallucinations_rate, "\n")
+    only_year_correct_rate_10 = total_only_year_correct_count[10] / (pred_comparison_count * 10)
+    print("\n=======>>> Rate of hallucinated predictions with only their publication years correct = ", only_year_correct_rate_10, "\n")
+    incorrect_format_rate_10 = total_incorrect_format_count[10] / (pred_comparison_count * 10)
+    print("\n=======>>> Rate of hallucinated predictions with incorrect citation format = ", incorrect_format_rate_10, "\n")
+    other_hallucinations_rate_10 = (total_hal_count[10] - total_only_author_names_correct_count[10] - total_single_author_name_correct_count[10] -
+                                    total_only_year_correct_count[10] - total_incorrect_format_count[10]) / (pred_comparison_count * 10)
+    print("\n=======>>> Rate of hallucinated predictions with other hallucinations (Correct citation format with irrelevant "
+          "author-year combinations that has no matches with ground truth) = ", other_hallucinations_rate_10, "\n")
 
-    fabricated_word_hal_rate = total_fabricated_word_hal_count / (pred_comparison_count * top_k)
-    print("\n=======>>> Rate of hallucinated predictions with fabricated words (independent rate from other rates) = ", fabricated_word_hal_rate, "\n")
+    fabricated_word_hal_rate_10 = total_fabricated_word_hal_count[10] / (pred_comparison_count * 10)
+    print("\n=======>>> Rate of hallucinated predictions with fabricated words (independent rate from other rates) = ", fabricated_word_hal_rate_10, "\n")
 
-    if_hit_at_k_hal_rate = if_hit_at_k_hal_count / (pred_comparison_count * top_k)
-    print(f"\n=======>>> Rate of all hallucinated predictions in top-{top_k} in cases where there is a hit = {if_hit_at_k_hal_rate}\n")
+    if_hit_at_k_hal_rate_10 = if_hit_at_k_hal_count[10] / (pred_comparison_count * 10)
+    print(f"\n=======>>> Rate of all hallucinated predictions in top-10 in cases where there is a hit = {if_hit_at_k_hal_rate_10}\n")
 
-    if_exact_match_hal_rate = if_exact_match_hal_count / (pred_comparison_count * top_k)
-    print(f"\n=======>>> Rate of all hallucinated predictions in top-{top_k} in cases where there is an exact match = {if_exact_match_hal_rate}\n")
+    if_exact_match_hal_rate_10 = if_exact_match_hal_count[10] / (pred_comparison_count * 10)
+    print(f"\n=======>>> Rate of all hallucinated predictions in top-10 in cases where there is an exact match = {if_exact_match_hal_rate_10}\n")
+
+
+    print("\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ TOP-5 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+
+    print(f"\n=======>>> Total number of predictions in top-5 case = {pred_comparison_count * 5}\n")
+
+    hal_rate_5 = total_hal_count[5] / (pred_comparison_count * 5)
+    print("\n=======>>> Hallucination rate (any prediction that does not belong to all citations list of the dataset is considered to be hallucination) = ", hal_rate_5, "\n")
+
+    partial_correct_rate_5 = (total_only_author_names_correct_count[5]+total_single_author_name_correct_count[5]+total_only_year_correct_count[5]) / (pred_comparison_count * 5)
+    print("\n=======>>> Partially correct predictions rate among hallucinated predictions = ", partial_correct_rate_5, "\n")
+    only_author_names_correct_rate_5 = total_only_author_names_correct_count[5] / (pred_comparison_count * 5)
+    print("\n=======>>> Rate of hallucinated predictions with only their author names correct (in \"and\" case, both names should be correct) = ", only_author_names_correct_rate_5, "\n")
+    total_single_author_name_correct_count_rate_5 = total_single_author_name_correct_count[5] / (pred_comparison_count * 5)
+    print("\n=======>>> Rate of hallucinated predictions with only one of the author names correct in \"and\" case = ", total_single_author_name_correct_count_rate_5, "\n")
+
+    only_year_correct_rate_5 = total_only_year_correct_count[5] / (pred_comparison_count * 5)
+    print("\n=======>>> Rate of hallucinated predictions with only their publication years correct = ", only_year_correct_rate_5, "\n")
+    incorrect_format_rate_5 = total_incorrect_format_count[5] / (pred_comparison_count * 5)
+    print("\n=======>>> Rate of hallucinated predictions with incorrect citation format = ", incorrect_format_rate_5, "\n")
+    other_hallucinations_rate_5 = (total_hal_count[5] - total_only_author_names_correct_count[5] - total_single_author_name_correct_count[5] -
+                                      total_only_year_correct_count[5] - total_incorrect_format_count[5]) / (pred_comparison_count * 5)
+    print("\n=======>>> Rate of hallucinated predictions with other hallucinations (Correct citation format with irrelevant "
+            "author-year combinations that has no matches with ground truth) = ", other_hallucinations_rate_5, "\n")
+
+    fabricated_word_hal_rate_5 = total_fabricated_word_hal_count[5] / (pred_comparison_count * 5)
+    print("\n=======>>> Rate of hallucinated predictions with fabricated words (independent rate from other rates) = ", fabricated_word_hal_rate_5, "\n")
+
+    if_hit_at_k_hal_rate_5 = if_hit_at_k_hal_count[5] / (pred_comparison_count * 5)
+    print(f"\n=======>>> Rate of all hallucinated predictions in top-5 in cases where there is a hit = {if_hit_at_k_hal_rate_5}\n")
+
+    if_exact_match_hal_rate_5 = if_exact_match_hal_count[5] / (pred_comparison_count * 5)
+    print(f"\n=======>>> Rate of all hallucinated predictions in top-5 in cases where there is an exact match = {if_exact_match_hal_rate_5}\n")
+
+
+    print("\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ TOP-3 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+
+    print(f"\n=======>>> Total number of predictions in top-3 case = {pred_comparison_count * 3}\n")
+
+    hal_rate_3 = total_hal_count[3] / (pred_comparison_count * 3)
+    print("\n=======>>> Hallucination rate (any prediction that does not belong to all citations list of the dataset is considered to be hallucination) = ", hal_rate_3, "\n")
+
+    partial_correct_rate_3 = (total_only_author_names_correct_count[3]+total_single_author_name_correct_count[3]+total_only_year_correct_count[3]) / (pred_comparison_count * 3)
+    print("\n=======>>> Partially correct predictions rate among hallucinated predictions = ", partial_correct_rate_3, "\n")
+    only_author_names_correct_rate_3 = total_only_author_names_correct_count[3] / (pred_comparison_count * 3)
+    print("\n=======>>> Rate of hallucinated predictions with only their author names correct (in \"and\" case, both names should be correct) = ", only_author_names_correct_rate_3, "\n")
+    total_single_author_name_correct_count_rate_3 = total_single_author_name_correct_count[3] / (pred_comparison_count * 3)
+    print("\n=======>>> Rate of hallucinated predictions with only one of the author names correct in \"and\" case = ", total_single_author_name_correct_count_rate_3, "\n")
+
+    only_year_correct_rate_3 = total_only_year_correct_count[3] / (pred_comparison_count * 3)
+    print("\n=======>>> Rate of hallucinated predictions with only their publication years correct = ", only_year_correct_rate_3, "\n")
+    incorrect_format_rate_3 = total_incorrect_format_count[3] / (pred_comparison_count * 3)
+    print("\n=======>>> Rate of hallucinated predictions with incorrect citation format = ", incorrect_format_rate_3, "\n")
+    other_hallucinations_rate_3 = (total_hal_count[3] - total_only_author_names_correct_count[3] - total_single_author_name_correct_count[3] -
+                                        total_only_year_correct_count[3] - total_incorrect_format_count[3]) / (pred_comparison_count * 3)
+    print("\n=======>>> Rate of hallucinated predictions with other hallucinations (Correct citation format with irrelevant "
+            "author-year combinations that has no matches with ground truth) = ", other_hallucinations_rate_3, "\n")
+
+    fabricated_word_hal_rate_3 = total_fabricated_word_hal_count[3] / (pred_comparison_count * 3)
+    print("\n=======>>> Rate of hallucinated predictions with fabricated words (independent rate from other rates) = ", fabricated_word_hal_rate_3, "\n")
+
+    if_hit_at_k_hal_rate_3 = if_hit_at_k_hal_count[3] / (pred_comparison_count * 3)
+    print(f"\n=======>>> Rate of all hallucinated predictions in top-3 in cases where there is a hit = {if_hit_at_k_hal_rate_3}\n")
+
+    if_exact_match_hal_rate_3 = if_exact_match_hal_count[3] / (pred_comparison_count * 3)
+    print(f"\n=======>>> Rate of all hallucinated predictions in top-3 in cases where there is an exact match = {if_exact_match_hal_rate_3}\n")
 
 
 if __name__ == '__main__':
@@ -354,7 +611,7 @@ if __name__ == '__main__':
     train_dataset_path = dataset_folder + "/context_dataset_train.csv"
     eval_dataset_path = dataset_folder + "/context_dataset_eval.csv"
 
-    all_citations_path = dataset_folder + "/citation_item_list.csv"  # NEW!!!!
+    all_citations_path = dataset_folder + "/citation_item_list.csv"
 
     num_epochs = args.num_epochs
 
@@ -389,21 +646,6 @@ if __name__ == '__main__':
 
     cit_generation_config.num_beam_groups = 10
     cit_generation_config.diversity_penalty = 1.5
-
-    # Example data to view dataset structure
-    """data = {
-        "train": [
-            {"input": "Fill the mask with an appropriate citation: models are trained end-to-end using backpropagation
-             and mini-batched Adam <mask> SGD. We use dropout regularization",
-             "target": "Kingma and Ba, 2014"},
-            # ...
-        ],
-        "validation": [
-            {"input": "Fill the mask with an appropriate citation: The new policy is <mask>.",
-             "target": "under review."},
-            # ...
-        ]
-    }"""
 
     train_dataset, eval_dataset = read_dataset()
 
@@ -471,9 +713,5 @@ if __name__ == '__main__':
         temp_cit = n['citation_items']
         all_cit_list.append(temp_cit)
 
-    print("\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ TOP-10 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
+
     calc_eval_metrics(eval_dataset, top_k=10)
-    print("\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ TOP-5 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
-    calc_eval_metrics(eval_dataset, top_k=5)
-    print("\n\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ TOP-3 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
-    calc_eval_metrics(eval_dataset, top_k=3)
