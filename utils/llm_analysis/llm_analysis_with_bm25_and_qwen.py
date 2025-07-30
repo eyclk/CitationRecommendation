@@ -6,6 +6,8 @@ from typing import List, Dict
 import pandas as pd
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
+from tqdm import tqdm
+import re
 
 
 all_documents_file_path = "C:\MY_FILES\PycharmProjects\CiteBART\preprocessing\global_datasets\peerread_global\context_dataset.csv"
@@ -77,17 +79,20 @@ docs = [
 unique_docs = {doc['citation']: doc for doc in docs}.values()
 docs = list(unique_docs)
 
-"""example_masked_context = "software,requiring hand-crafted features, lexicons, and grammars.Meanwhile, recurrent neural networks  have made swift inroads intomany structured prediction tasks in NLP,including machine translation  <mask>  andsyntactic parsing .Because RNNs make very few domain-specific assumptions,they have the potential to succeed at a wide variety of taskswith minimal feature engineering.wever, this flexibility also "
+print("\nTotal number of unique papers from the entire dataset:", len(docs), "\n")
+
+"""
+example_masked_context = "software,requiring hand-crafted features, lexicons, and grammars.Meanwhile, recurrent neural networks  have made swift inroads intomany structured prediction tasks in NLP,including machine translation  <mask>  andsyntactic parsing .Because RNNs make very few domain-specific assumptions,they have the potential to succeed at a wide variety of taskswith minimal feature engineering.wever, this flexibility also "
 
 retriever = CitationRetrieverBM25(docs)
 top_k_docs = retriever.retrieve_top_k(example_masked_context, k=100)  # Try with 100 and 300
-
 # Print the top k documents line by line
 for i, doc in enumerate(top_k_docs):
     print(f"Top {i+1} Document:")
     print(f"Citation: {doc['citation']}")
     print(f"Title: {doc['title']}")
-    print(f"Abstract: {doc['abstract']}\n\n")"""
+    print(f"Abstract: {doc['abstract']}\n\n")
+"""
 
 df_eval = pd.read_csv(eval_set_for_masked_contexts_file_path)
 
@@ -106,9 +111,10 @@ retriever = CitationRetrieverBM25(docs)
 
 # Retrieve top k documents for each masked context in the evaluation set
 top_k_results = []
-for masked_context in eval_set_masked_contexts:
-    top_k_docs = retriever.retrieve_top_k(masked_context, k=100)  # Retrieve top 100 or 300 documents
+for m in tqdm(eval_set_masked_contexts, desc="Retrieving top k documents with BM25"):
+    top_k_docs = retriever.retrieve_top_k(m, k=100)  # Retrieve top 100 or 300 documents
     top_k_results.append(top_k_docs)
+
 """
 # Print the top k results line by line for the first masked context as an example
 for i, doc in enumerate(top_k_results[0]):
@@ -122,8 +128,9 @@ print("Masked Context:", eval_set_masked_contexts[0], "\n")
 print("Ground Truth Citation:", ground_truth_citations[0])
 """
 
+# Merge the top k results into a single string for each document
 top_k_results_merged_strings = [
-    [f"Citation: {doc['citation']} [SEP] Title: {doc['title']} [SEP] Abstract: {doc['abstract']}" for doc in top_k_docs]
+    [f"{doc['citation']} [SEP] Title: {doc['title']} [SEP] Abstract: {doc['abstract']}" for doc in top_k_docs]
     for top_k_docs in top_k_results
 ]
 
@@ -131,60 +138,114 @@ top_k_results_merged_strings = [
 # ************************************************** QWEN ZERO-SHOT ANALYSIS **************************************
 
 def format_prompt(context: str, candidate: str) -> str:
-    return f"You are a local citation recommender. Based on the relevance between the query “{context}” and the document “{candidate}”, assign a single digit score between 0 and 100. Please provide only the score as the output."
+    return f"You are a local citation recommender. Based on the relevance between the query “{context}” and the document “{candidate}”, assign a numerical score between 0 and 100. Please provide only the score as the output."
 
 
-
-# Load Qwen model (e.g., Qwen-1.5-Chat)
-model_name = "Qwen/Qwen-1.5-7B-Chat"
+# Load Qwen model (e.g., Qwen1.5-Chat)
+model_name = "Qwen/Qwen1.5-1.8B-Chat"
 tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto", trust_remote_code=True)
+model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True).to("cuda")  ## device_map="auto"  , device_map={"": "cuda"}
 
 
-def score_candidate(prompt: str) -> float:
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    with torch.no_grad():
-        outputs = model.generate(**inputs, max_new_tokens=128)
-    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+def batch_score_candidates(context: str, candidates: List[str], batch_size: int = 8) -> List[float]:
+    scores = []
 
-    # Extract score (e.g., look for "Score: 4" or "4 out of 5")
-    """import re
-    match = re.search(r"\b([1-100])\b", response)
-    if match:
-        return int(match.group(1))
-    else:
-        return 0  # fallback if no number found"""
+    # for i in tqdm(range(0, len(candidates), batch_size), desc="Scoring candidates"):
+    for i in range(0, len(candidates), batch_size):
+        batch = candidates[i:i + batch_size]
+        prompts = [format_prompt(context, cand) for cand in batch]
 
-    # Extract score. It should be a number between 0 and 100. Convert it to float if it is between 0 and 100. Otherwise, return 0.
-    try:
-        score = float(response.strip())
-        if 0 <= score <= 100:
-            return score
-        else:
-            return 0.0  # fallback if score is out of range
-    except ValueError:
-        return 0.0
+        # Tokenize as chat format
+        messages = [{"role": "user", "content": prompt} for prompt in prompts]
+        inputs = tokenizer.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            tokenize=True,
+            return_dict=True,
+            return_tensors="pt"
+        ).to(model.device)
+
+        with torch.no_grad():
+            torch.manual_seed(42)  # For reproducibility across runs
+            outputs = model.generate(**inputs, max_new_tokens=8, do_sample=False,  top_p=None)
+
+        batch_responses = tokenizer.batch_decode(
+            [output[input_ids.shape[-1]:] for output, input_ids in zip(outputs, inputs['input_ids'])],
+            skip_special_tokens=True
+        )
+
+        for response in batch_responses:
+            try:
+                score = float(response.strip())
+                if 0 <= score <= 100:
+                    scores.append(score)
+                    continue
+            except ValueError:
+                pass
+
+            # Fallback: try to extract a float
+            extracted_score = re.search(r"\d+(\.\d+)?", response.strip())
+            if extracted_score:
+                score = float(extracted_score.group(0))
+                if 0 <= score <= 100:
+                    scores.append(score)
+                    continue
+
+            scores.append(0.0)  # fallback
+    return scores
 
 
+def select_top_10_citations(context: str, candidates: List[str], batch_size: int = 8):
+    scores = batch_score_candidates(context, candidates, batch_size=batch_size)
 
-#############   BURALARI DÜZELT   !!!!!!!!!!!
-
-
-# Loop through candidates
-def select_best_citation(context: str, candidates: List[str]) -> str:
-    best_score = -1
-    best_candidate = None
-    for cand in candidates:
-        prompt = format_prompt(context, cand)
-        score = score_candidate(prompt)
-        if score > best_score:
-            best_score = score
-            best_candidate = cand
-    return best_candidate
+    # Select top 10 candidates based on scores
+    top_10_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:10]
+    top_10_candidates = [candidates[i] for i in top_10_indices]
+    top_10_scores = [scores[i] for i in top_10_indices]
+    return top_10_candidates, top_10_scores
 
 
 ### EXAMPLE USAGE ###
-best = select_best_citation(temp_masked_context, top_k_citations_for_masked_context)
+"""temp_masked_context = eval_set_masked_contexts[0]  # Example masked context
+top_k_citations_for_masked_context = top_k_results_merged_strings[0]  # Top k citations for the example masked context
+best = select_best_citation(temp_masked_context, top_k_citations_for_masked_context, batch_size=4)
+
 print("Best Matching Citation Title:", best)
+print("\nGround Truth Citation Title:", ground_truth_citations[0])"""
 
 
+eval_set_masked_contexts = eval_set_masked_contexts[:100]  # LIMIT to first 100 for testing ......... TEMP
+
+
+correct_top_10_match_count = 0
+matched_top_10_indices = []
+for e in tqdm(range(len(eval_set_masked_contexts)), desc="Processing the entire evaluation set"):
+    temp_masked_context = eval_set_masked_contexts[e]  # Example masked context
+    top_k_citations_for_masked_context = top_k_results_merged_strings[e]  # Top k citations for the example masked context
+
+    temp_top_10, _ = select_top_10_citations(temp_masked_context, top_k_citations_for_masked_context, batch_size=8)
+
+    # Extract the citation from the top 10 results by splitting on [SEP] and taking the first part
+    temp_top_10_citations = [doc.split("[SEP]")[0].strip() for doc in temp_top_10]
+
+    match_found = False
+    # Check if the top 10 citation matches the ground truth citation
+    for t in temp_top_10_citations:
+        if t == ground_truth_citations[e]:
+            correct_top_10_match_count += 1
+            matched_top_10_indices.append(e+1)
+            match_found = True
+            break
+
+    if not match_found:
+        matched_top_10_indices.append(0)
+
+# Calculate the percentage of correct matches
+correct_percentage = (correct_top_10_match_count / len(eval_set_masked_contexts)) * 100
+
+# Calculate MRR score using the matched indices
+mrr_score = sum((1 / idx if idx>0 else 0) for idx in matched_top_10_indices) / len(matched_top_10_indices)
+
+print(f"\nTotal number of correct top 10 matches: {correct_top_10_match_count} out of {len(eval_set_masked_contexts)}")
+print(f"Percentage of correct top 10 matches (Recall@10 score): {correct_percentage:.2f}%")
+print(f"Mean Reciprocal Rank (MRR) score: {mrr_score:.4f}")
