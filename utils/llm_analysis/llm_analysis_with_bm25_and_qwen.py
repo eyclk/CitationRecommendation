@@ -81,19 +81,6 @@ docs = list(unique_docs)
 
 print("\nTotal number of unique papers from the entire dataset:", len(docs), "\n")
 
-"""
-example_masked_context = "software,requiring hand-crafted features, lexicons, and grammars.Meanwhile, recurrent neural networks  have made swift inroads intomany structured prediction tasks in NLP,including machine translation  <mask>  andsyntactic parsing .Because RNNs make very few domain-specific assumptions,they have the potential to succeed at a wide variety of taskswith minimal feature engineering.wever, this flexibility also "
-
-retriever = CitationRetrieverBM25(docs)
-top_k_docs = retriever.retrieve_top_k(example_masked_context, k=100)  # Try with 100 and 300
-# Print the top k documents line by line
-for i, doc in enumerate(top_k_docs):
-    print(f"Top {i+1} Document:")
-    print(f"Citation: {doc['citation']}")
-    print(f"Title: {doc['title']}")
-    print(f"Abstract: {doc['abstract']}\n\n")
-"""
-
 df_eval = pd.read_csv(eval_set_for_masked_contexts_file_path)
 
 temp_eval_set_masked_contexts = df_eval[["masked_cit_context", "citing_title", "citing_abstract"]].to_dict(orient='records')
@@ -115,19 +102,6 @@ for m in tqdm(eval_set_masked_contexts, desc="Retrieving top k documents with BM
     top_k_docs = retriever.retrieve_top_k(m, k=100)  # Retrieve top 100 or 300 documents
     top_k_results.append(top_k_docs)
 
-"""
-# Print the top k results line by line for the first masked context as an example
-for i, doc in enumerate(top_k_results[0]):
-    print(f"Top {i+1} Document:")
-    print(f"Citation: {doc['citation']}")
-    print(f"Title: {doc['title']}")
-    print(f"Abstract: {doc['abstract']}\n\n\n")
-
-# Print the first masked context as an example alongside its ground truth citation
-print("Masked Context:", eval_set_masked_contexts[0], "\n")
-print("Ground Truth Citation:", ground_truth_citations[0])
-"""
-
 # Merge the top k results into a single string for each document
 top_k_results_merged_strings = [
     [f"{doc['citation']} [SEP] Title: {doc['title']} [SEP] Abstract: {doc['abstract']}" for doc in top_k_docs]
@@ -139,6 +113,13 @@ top_k_results_merged_strings = [
 
 def format_prompt(context: str, candidate: str) -> str:
     return f"You are a local citation recommender. Based on the relevance between the query “{context}” and the document “{candidate}”, assign a numerical score between 0 and 100. Please provide only the score as the output."
+
+
+"""
+######  ALTERNATIVE PROMPT FORMAT WITH SINGLE DIGIT WORDING ######
+def format_prompt(context: str, candidate: str) -> str:
+    return f"You are a local citation recommender. Based on the relevance between the query “{context}” and the document “{candidate}”, assign a single digit score between 0 and 100. Please provide only the score as the output."
+"""
 
 
 # Load Qwen model (e.g., Qwen1.5-Chat)
@@ -214,11 +195,12 @@ print("Best Matching Citation Title:", best)
 print("\nGround Truth Citation Title:", ground_truth_citations[0])"""
 
 
-eval_set_masked_contexts = eval_set_masked_contexts[:100]  # LIMIT to first 100 for testing ......... TEMP
+#####   eval_set_masked_contexts = eval_set_masked_contexts[:100]  # LIMIT to first 100 for testing ......... TEMP
 
 
 correct_top_10_match_count = 0
 matched_top_10_indices = []
+exact_match_count = 0
 for e in tqdm(range(len(eval_set_masked_contexts)), desc="Processing the entire evaluation set"):
     temp_masked_context = eval_set_masked_contexts[e]  # Example masked context
     top_k_citations_for_masked_context = top_k_results_merged_strings[e]  # Top k citations for the example masked context
@@ -227,6 +209,10 @@ for e in tqdm(range(len(eval_set_masked_contexts)), desc="Processing the entire 
 
     # Extract the citation from the top 10 results by splitting on [SEP] and taking the first part
     temp_top_10_citations = [doc.split("[SEP]")[0].strip() for doc in temp_top_10]
+
+    # Check if the ground truth citation matches any of the top 10 citations
+    if ground_truth_citations[e] == temp_top_10_citations[0]:
+        exact_match_count += 1
 
     match_found = False
     # Check if the top 10 citation matches the ground truth citation
@@ -246,6 +232,11 @@ correct_percentage = (correct_top_10_match_count / len(eval_set_masked_contexts)
 # Calculate MRR score using the matched indices
 mrr_score = sum((1 / idx if idx>0 else 0) for idx in matched_top_10_indices) / len(matched_top_10_indices)
 
+# Calculate the percentage of exact matches
+exact_match_percentage = (exact_match_count / len(eval_set_masked_contexts)) * 100
+
+# Print the results
 print(f"\nTotal number of correct top 10 matches: {correct_top_10_match_count} out of {len(eval_set_masked_contexts)}")
 print(f"Percentage of correct top 10 matches (Recall@10 score): {correct_percentage:.2f}%")
 print(f"Mean Reciprocal Rank (MRR) score: {mrr_score:.4f}")
+print(f"Exact match count: {exact_match_count} out of {len(eval_set_masked_contexts)} --> {exact_match_percentage:.2f}%")
