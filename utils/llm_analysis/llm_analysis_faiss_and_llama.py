@@ -109,11 +109,11 @@ class FAISSLLaMAPredictor:
         documents = []
         for doc in all_docs:
             faiss_doc = Document(
-                page_content=f"{doc['title']} {doc['abstract']}",
+                page_content=f"{doc['title']} {doc['abstract'][:100]}",
                 metadata={
                     "citation": doc["citation"],
                     "title": doc["title"],
-                    "abstract": doc["abstract"],
+                    "abstract": doc["abstract"][:100],
                 },
             )
             documents.append(faiss_doc)
