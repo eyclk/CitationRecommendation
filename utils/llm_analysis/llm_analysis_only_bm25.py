@@ -2,6 +2,7 @@ from fastbm25 import fastbm25
 from typing import List, Dict
 import pandas as pd
 from tqdm import tqdm
+import random
 
 
 # all_documents_file_path = "C:\MY_FILES\PycharmProjects\CiteBART\preprocessing\global_datasets\\acl200_global\context_dataset.csv"
@@ -98,9 +99,18 @@ eval_set_masked_contexts = [
 ]
 
 
-# -------------------------- Reduce the number of documents in "eval set" to 20000  ------------------------------------
-eval_set_masked_contexts = eval_set_masked_contexts[:30000]
-ground_truth_citations = ground_truth_citations[:30000]
+# -------------------------- Reduce the number of documents in "eval set" to 30000 by sampling randomly  -------------------------------
+# Set a seed for reproducibility
+random.seed(42)
+
+# Sample 30000 documents from the eval set
+if len(eval_set_masked_contexts) > 30000:
+    # Get 30000 random indices between 0 and the length of eval_set_masked_contexts
+    random_indices = random.sample(range(len(eval_set_masked_contexts)), 30000)
+    # Sample the eval_set_masked_contexts and ground_truth_citations using the random indices
+    eval_set_masked_contexts = [eval_set_masked_contexts[i] for i in random_indices]
+    ground_truth_citations = [ground_truth_citations[i] for i in random_indices]
+# -------------------------- End of sampling eval set to 30000 documents ------------------------------------
 
 
 # Create the retriever instance with the documents
