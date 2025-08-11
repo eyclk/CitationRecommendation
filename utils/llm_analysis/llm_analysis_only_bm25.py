@@ -5,8 +5,6 @@ from tqdm import tqdm
 import random
 
 
-# all_documents_file_path = "C:\MY_FILES\PycharmProjects\CiteBART\preprocessing\global_datasets\\acl200_global\context_dataset.csv"
-
 eval_set_for_masked_contexts_file_path = "C:\MY_FILES\PycharmProjects\CiteBART\preprocessing\global_datasets\\arxiv_global\context_dataset_eval.csv"
 
 train_set_file_path = "C:\MY_FILES\PycharmProjects\CiteBART\preprocessing\global_datasets\\arxiv_global\context_dataset_train.csv"

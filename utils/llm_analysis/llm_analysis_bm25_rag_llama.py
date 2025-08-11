@@ -12,6 +12,7 @@ from langchain.chains import RetrievalQA
 import torch
 import random
 
+
 """
 pip install fastbm25
 pip install langchain
@@ -21,7 +22,6 @@ pip install accelerate==0.26.0
 pip install faiss-cpu
 (Also install PyTorch and transformers)
 """
-
 
 eval_set_for_masked_contexts_file_path = "C:\MY_FILES\PycharmProjects\CiteBART\preprocessing\global_datasets\\peerread_global\context_dataset_eval.csv"
 
@@ -63,15 +63,6 @@ class CitationRetrieverBM25:
         # Return top k documents with their metadata
         return [self.documents[idx[1]] for idx in top_indices]
 
-
-"""     ### EXAMPLE USAGE ###
-docs = [{"citation": "Vinyals et al., 2014", "title": "Grammar as a Foreign Language", "abstract": "Syntactic parsing is a fundamental problem in computational linguistics and Natural Language Processing. Traditional approaches to parsing are highly complex and problem specific. Recently, Sutskever et al. (2014) presented a domain-independent method for learning to map input sequences to output sequences that achieved strong results on a large scale machine translation problem. In this work, we show that precisely the same sequence-to-sequence method achieves results that are close to state-of-the-art on syntactic constituency parsing, whilst making almost no assumptions about the structure of the problem."},
-        {"citation": "Sutskever et al., 2014", "title": "Sequence to Sequence Learning with Neural Networks", "abstract": "Deep Neural Networks (DNNs) are powerful models that have achieved excellent performance on difficult learning tasks. Although DNNs work well whenever large labeled training sets are available, they cannot be used to map sequences to sequences. In this paper, we present a general end-to-end approach to sequence learning that makes minimal assumptions on the sequence structure. Our method uses a multilayered Long Short-Term Memory (LSTM) to map the input sequence to a vector of a fixed dimensionality, and then another deep LSTM to decode the target sequence from the vector. Our main result is that on an English to French translation task from the WMT-14 dataset, the translations produced by the LSTM achieve a BLEU score of 34.7 on the entire test set, where the LSTM's BLEU score was penalized on out-of-vocabulary words. Additionally, the LSTM did not have difficulty on long sentences. For"}]
-masked_citing_context = "nd-crafted features, lexicons, and grammars.Meanwhile, recurrent neural networks  have made swift inroads intomany structured prediction tasks in NLP,including machine translation andsyntactic parsing  <mask>  .Because RNNs make very few domain-specific assumptions,they have the potential to succeed at a wide variety of taskswith minimal feature engineering.wever, this flexibility also puts RNNs at a disadv"
-retriever = CitationRetrieverBM25(docs)
-top_k_docs = retriever.retrieve_top_k(masked_citing_context, k=1)
-print(top_k_docs)
-"""
 
 # Open train set documents csv file and read the documents
 df_train = pd.read_csv(train_set_file_path)

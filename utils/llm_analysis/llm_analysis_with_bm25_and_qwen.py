@@ -149,7 +149,7 @@ def batch_score_candidates(context: str, candidates: List[str], batch_size: int 
 
         with torch.no_grad():
             torch.manual_seed(42)  # For reproducibility across runs
-            outputs = model.generate(**inputs, max_new_tokens=32, do_sample=False,  top_p=None)  # max_new_tokens can be 8 or 32. However, 32 is better.
+            outputs = model.generate(**inputs, max_new_tokens=32, do_sample=False,  top_p=None)  # max_new_tokens can be 8 or 32.
 
         batch_responses = tokenizer.batch_decode(
             [output[input_ids.shape[-1]:] for output, input_ids in zip(outputs, inputs['input_ids'])],
@@ -207,7 +207,7 @@ print("Best Matching Citation Title:", best)
 print("\nGround Truth Citation Title:", ground_truth_citations[0])"""
 
 
-eval_set_masked_contexts = eval_set_masked_contexts[:10]  # LIMIT to first 100 for testing ......... TEMP
+eval_set_masked_contexts = eval_set_masked_contexts[:100]  # LIMIT to first 100 for testing ......... TEMP
 
 
 correct_top_10_match_count = 0
@@ -260,5 +260,3 @@ print(f"Percentage of correct top 10 matches (Recall@10 score): {correct_percent
 print(f"Mean Reciprocal Rank (MRR) score: {mrr_score:.4f}")
 print(f"Exact match count: {exact_match_count} out of {len(eval_set_masked_contexts)} --> {exact_match_percentage:.2f}%")
 
-
-################ NOTE TO SELF: REMOVE ANY UNNECESSARY PRINT STATEMENTS ############

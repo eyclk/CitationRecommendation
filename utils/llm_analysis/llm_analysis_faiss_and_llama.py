@@ -1,4 +1,3 @@
-# llm_analysis_faiss_and_LLM_fixed_v2.py
 from typing import List, Dict
 import pandas as pd
 from tqdm import tqdm
@@ -86,8 +85,8 @@ eval_set_masked_contexts = [
 ]
 
 random.seed(42)
-if len(eval_set_masked_contexts) > 100:
-    random_indices = random.sample(range(len(eval_set_masked_contexts)), 100)
+if len(eval_set_masked_contexts) > 30000:
+    random_indices = random.sample(range(len(eval_set_masked_contexts)), 30000)
     eval_set_masked_contexts = [eval_set_masked_contexts[i] for i in random_indices]
     ground_truth_citations = [ground_truth_citations[i] for i in random_indices]
 
